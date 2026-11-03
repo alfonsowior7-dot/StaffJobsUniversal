@@ -1,5 +1,7 @@
-# STAFFJOBS Universal 1.0.4
+# STAFFJOBS Universal 1.0.1
 settings:
+  notifications:
+    sound: BLOCK_NOTE_BLOCK_PLING
   update-check:
     enabled: true
     repository: https://raw.githubusercontent.com/alfonsowior7-dot/StaffJobsUniversal/main/src/main/resources/plugin.yml

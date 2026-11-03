@@ -27,8 +27,8 @@ STAFFJOBS UNIVERSAL is a Minecraft staff management plugin designed to bring ess
 - Improved empty-report message validation.
 - Added periodic data saving when auto-save is enabled.
 - Added a final data save during plugin shutdown.
-- Added staff AFK status and last-online tracking in the Online Staff GUI.
-- Added manual backup creation, backup listing, and guarded backup restoration through `/staffbackup`.
+- Added staff AFK status using movement, chat, commands, interactions, inventory clicks, and block activity; online members display “Online now”.
+- Added manual backup creation, backup listing, and guarded backup restoration through `/staffbackup`; backups flush current data first, use millisecond-unique names, and report failures accurately.
 - Included staff status data in scheduled backups.
 - Expanded activity log entries with explicit actor, target, action, before, and after fields where available.
 
@@ -42,10 +42,11 @@ Requires `staffjobs.backup` (default: operators).
 
 ## Platform and Runtime
 
-- Platform: Paper
-- Java: 17
+- Platform: Paper (Bukkit-compatible Paper API)
+- Plugin bytecode target / build toolchain: Java 17
 - Minimum API target: Paper 1.20.1
 - Plugin API declaration: 1.20
+- Server runtime Java depends on the Paper version: Java 17 for Paper 1.20.1–1.20.4; Java 21 for Paper 1.20.5–1.21.11; Java 25 for Paper 26.x. Always follow the requirements of the exact Paper build you run.
 
 ## Target Compatibility
 

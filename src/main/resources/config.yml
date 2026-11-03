@@ -2,6 +2,10 @@
 settings:
   notifications:
     sound: BLOCK_NOTE_BLOCK_PLING
+  backups:
+    enabled: true
+    interval-hours: 24
+    keep: 7
   update-check:
     enabled: true
     repository: https://raw.githubusercontent.com/alfonsowior7-dot/StaffJobsUniversal/main/src/main/resources/plugin.yml
@@ -17,6 +21,8 @@ settings:
     restore-offhand: true
     replace-inventory: true
   reports:
+    cooldown-seconds: 60
+    max-history: 500
     allow-empty-message: false
     notify-staff: true
     expiration-hours: 0

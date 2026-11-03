@@ -103,6 +103,7 @@ public class StaffJobsPlugin extends JavaPlugin implements Listener {
     private final Map<UUID, String> deathSelection = new HashMap<>();
     private final Map<UUID, Integer> deathPages = new HashMap<>();
     private final Map<UUID, Integer> activityPages = new HashMap<>();
+    private final Map<UUID, Integer> staffHistoryPages = new HashMap<>();
     private final Map<UUID, Long> lastReportAt = new java.util.concurrent.ConcurrentHashMap<>();
     private volatile String latestVersion;
     private volatile boolean updateCheckCompleted;
@@ -1006,12 +1007,27 @@ public class StaffJobsPlugin extends JavaPlugin implements Listener {
             } else if (slot == 22) openStaffMenu(player);
             return;
         }
+        if (title.startsWith("§8History: ")) {
+            String staffName = title.substring("§8History: ".length());
+            int page = staffHistoryPages.getOrDefault(player.getUniqueId(), 0);
+            if (slot == 45) { openStaffHistory(player, staffName, page - 1); return; }
+            if (slot == 48) { openStaffHistory(player, staffName, page); return; }
+            if (slot == 49) { openActivityLogs(player, activityPages.getOrDefault(player.getUniqueId(), 0)); return; }
+            if (slot == 53) { openStaffHistory(player, staffName, page + 1); return; }
+            return;
+        }
+
         if (title.startsWith("§8Staff Activity Logs")) {
             int page = activityPages.getOrDefault(player.getUniqueId(), 0);
             if (slot == 45) { openActivityLogs(player, page - 1); return; }
             if (slot == 48) { openActivityLogs(player, page); return; }
             if (slot == 49) { openStaffMenu(player); return; }
             if (slot == 53) { openActivityLogs(player, page + 1); return; }
+            ItemStack clicked = event.getCurrentItem();
+            if (clicked == null || clicked.getType() != Material.WRITABLE_BOOK) return;
+            int index = page * 45 + slot;
+            List<String> names = getLoggedStaffNames();
+            if (index >= 0 && index < names.size()) openStaffHistory(player, names.get(index), 0);
             return;
         }
 
@@ -1682,23 +1698,76 @@ public class StaffJobsPlugin extends JavaPlugin implements Listener {
         player.openInventory(inv);
     }
 
+    private List<String> getLoggedStaffNames() {
+        Set<String> names = new TreeSet<>(String.CASE_INSENSITIVE_ORDER);
+        for (String entry : logsData.getStringList("entries")) {
+            String actor = getLogField(entry, "Actor");
+            if (!actor.isBlank()) names.add(actor);
+        }
+        return new ArrayList<>(names);
+    }
+
+    private String getLogField(String entry, String field) {
+        String marker = field + ": ";
+        for (String part : entry.split(" \\| ")) {
+            if (part.startsWith(marker)) return part.substring(marker.length()).trim();
+        }
+        return "";
+    }
+
     private void openActivityLogs(Player staff, int requestedPage) {
-        List<String> entries = logsData.getStringList("entries");
-        int pages = Math.max(1, (entries.size() + 44) / 45);
+        List<String> names = getLoggedStaffNames();
+        int pages = Math.max(1, (names.size() + 44) / 45);
         int page = Math.max(0, Math.min(requestedPage, pages - 1));
         activityPages.put(staff.getUniqueId(), page);
         Inventory inv = Bukkit.createInventory(null, 54, "§8Staff Activity Logs");
-        int end = entries.size() - (page * 45);
-        int start = Math.max(0, end - 45);
+        int start = page * 45;
         int slot = 0;
-        for (int i = end - 1; i >= start && slot < 45; i--) {
-            inv.setItem(slot++, createItem(Material.WRITABLE_BOOK, "§eLog #" + (i + 1), "§7" + entries.get(i)));
+        for (int i = start; i < Math.min(names.size(), start + 45); i++) {
+            String name = names.get(i);
+            int count = 0;
+            for (String entry : logsData.getStringList("entries")) {
+                if (name.equalsIgnoreCase(getLogField(entry, "Actor"))) count++;
+            }
+            // Keep the staff book clean: activity descriptions are shown only in the detail GUI.
+            inv.setItem(slot++, createItem(Material.WRITABLE_BOOK, "§e" + name,
+                    "§7Activity entries: " + count, "§eClick to view history."));
         }
         inv.setItem(45, createItem(Material.ARROW, "§ePrevious Page"));
         inv.setItem(48, createItem(Material.CLOCK, "§bRefresh"));
         inv.setItem(49, createItem(Material.ARROW, "§eBack", "§7Page " + (page + 1) + "/" + pages));
         inv.setItem(53, createItem(Material.ARROW, "§eNext Page"));
         staff.openInventory(inv);
+    }
+
+    private void openStaffHistory(Player viewer, String staffName, int requestedPage) {
+        List<String> matching = new ArrayList<>();
+        for (String entry : logsData.getStringList("entries")) {
+            if (staffName.equalsIgnoreCase(getLogField(entry, "Actor"))) matching.add(entry);
+        }
+        int pages = Math.max(1, (matching.size() + 44) / 45);
+        int page = Math.max(0, Math.min(requestedPage, pages - 1));
+        staffHistoryPages.put(viewer.getUniqueId(), page);
+        String title = "§8History: " + staffName;
+        Inventory inv = Bukkit.createInventory(null, 54, title);
+        int end = matching.size() - (page * 45);
+        int start = Math.max(0, end - 45);
+        int slot = 0;
+        for (int i = end - 1; i >= start && slot < 45; i--) {
+            String entry = matching.get(i);
+            String action = getLogField(entry, "Action");
+            if (action.isBlank()) action = "Staff activity";
+            inv.setItem(slot++, createItem(Material.PAPER, "§e" + action,
+                    "§7When: §f" + entry.split(" \\| ", 2)[0],
+                    "§7Target: §f" + getLogField(entry, "Target"),
+                    "§7Before: §f" + getLogField(entry, "Before"),
+                    "§7After: §f" + getLogField(entry, "After")));
+        }
+        inv.setItem(45, createItem(Material.ARROW, "§ePrevious Page"));
+        inv.setItem(48, createItem(Material.CLOCK, "§bRefresh"));
+        inv.setItem(49, createItem(Material.ARROW, "§eBack to staff list"));
+        inv.setItem(53, createItem(Material.ARROW, "§eNext Page"));
+        viewer.openInventory(inv);
     }
 
     private void logAction(Player staff, String action, String target) {

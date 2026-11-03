@@ -13,6 +13,7 @@ import org.bukkit.entity.Projectile;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.Listener;
 import org.bukkit.event.inventory.InventoryClickEvent;
+import org.bukkit.event.inventory.InventoryDragEvent;
 import org.bukkit.event.player.PlayerJoinEvent;
 import org.bukkit.event.player.AsyncPlayerChatEvent;
 import org.bukkit.event.player.PlayerMoveEvent;
@@ -21,6 +22,8 @@ import org.bukkit.event.player.PlayerInteractEntityEvent;
 import org.bukkit.event.block.BlockBreakEvent;
 import org.bukkit.event.block.BlockPlaceEvent;
 import org.bukkit.event.player.PlayerDropItemEvent;
+import org.bukkit.event.player.PlayerSwapHandItemsEvent;
+import org.bukkit.event.player.PlayerItemHeldEvent;
 import org.bukkit.event.player.PlayerPickupItemEvent;
 import org.bukkit.event.entity.PlayerDeathEvent;
 import org.bukkit.event.player.PlayerRespawnEvent;
@@ -71,7 +74,24 @@ public class StaffJobsPlugin extends JavaPlugin implements Listener {
     private YamlConfiguration frozenData, reportsData, notificationsData, logsData, deathsData, punishmentsData;
     private final Map<UUID, Long> mutedUntil = new java.util.concurrent.ConcurrentHashMap<>();
     private final DateTimeFormatter dateFormatter = DateTimeFormatter.ofPattern("dd-MM-yyyy HH:mm:ss");
-    private static final ZoneId WIB = ZoneId.of("Asia/Jakarta");
+    private ZoneId getConfiguredZone() {
+        String configured = getConfig().getString("settings.timezone", "Asia/Jakarta");
+        try {
+            return ZoneId.of(configured == null || configured.isBlank() ? "Asia/Jakarta" : configured);
+        } catch (RuntimeException exception) {
+            getLogger().warning("Invalid settings.timezone '" + configured + "'. Falling back to Asia/Jakarta.");
+            return ZoneId.of("Asia/Jakarta");
+        }
+    }
+
+    private String getZoneLabel() {
+        return switch (getConfiguredZone().getId()) {
+            case "Asia/Jakarta" -> "WIB";
+            case "Asia/Makassar" -> "WITA";
+            case "Asia/Jayapura" -> "WIT";
+            default -> getConfiguredZone().getId();
+        };
+    }
     private final Map<UUID, String> deathSelection = new HashMap<>();
     private final Map<UUID, Integer> deathPages = new HashMap<>();
     private final Map<UUID, Integer> activityPages = new HashMap<>();
@@ -92,7 +112,19 @@ public class StaffJobsPlugin extends JavaPlugin implements Listener {
         Objects.requireNonNull(getCommand("staffmenu")).setExecutor(this);
         Objects.requireNonNull(getCommand("report")).setExecutor(this);
         Bukkit.getScheduler().runTaskTimer(this, this::removeExpiredReports, 20L * 60L, 20L * 60L);
+        if (getConfig().getBoolean("settings.auto-save", true)) {
+            Bukkit.getScheduler().runTaskTimer(this, this::saveAllData, 20L * 60L * 5L, 20L * 60L * 5L);
+        }
         getLogger().info("STAFFJOBS has been enabled successfully!");
+    }
+
+    private void saveAllData() {
+        saveFrozen();
+        saveReports();
+        savePunishments();
+        saveNotifications();
+        saveLogs();
+        saveDeaths();
     }
 
     @Override
@@ -265,12 +297,12 @@ public class StaffJobsPlugin extends JavaPlugin implements Listener {
                 player.sendMessage(PREFIX + ChatColor.RED + "You do not have permission.");
                 return true;
             }
-            if (args.length == 0) {
+            if (args.length == 0 && !getConfig().getBoolean("settings.reports.allow-empty-message", false)) {
                 player.sendMessage(PREFIX + ChatColor.RED + "Usage: /report <message>");
                 return true;
             }
             String message = String.join(" ", args).trim();
-            if (message.isEmpty()) {
+            if (message.isEmpty() && !getConfig().getBoolean("settings.reports.allow-empty-message", false)) {
                 player.sendMessage(PREFIX + ChatColor.RED + "Report message cannot be empty.");
                 return true;
             }
@@ -315,12 +347,13 @@ public class StaffJobsPlugin extends JavaPlugin implements Listener {
     private void addPunishment(Player target, String type, String reason, String actor, long expiry) {
         String path = "players." + target.getUniqueId();
         List<String> history = punishmentsData.getStringList(path);
-        String record = ZonedDateTime.now(WIB).format(dateFormatter) + " WIB | " + type
+        String record = ZonedDateTime.now(getConfiguredZone()).format(dateFormatter) + " WIB | " + type
                 + " | By: " + actor + " | Reason: " + reason
                 + (expiry > 0 ? " | Expires: " + ZonedDateTime.ofInstant(
-                        java.time.Instant.ofEpochMilli(expiry), WIB).format(dateFormatter) + " WIB" : "");
+                        java.time.Instant.ofEpochMilli(expiry), getConfiguredZone()).format(dateFormatter) + " " + getZoneLabel() : "");
         history.add(record);
-        while (history.size() > 100) history.remove(0);
+        int maxHistory = Math.max(1, getConfig().getInt("settings.punishments.max-history-per-player", 100));
+        while (history.size() > maxHistory) history.remove(0);
         punishmentsData.set(path, history);
     }
 
@@ -334,8 +367,9 @@ public class StaffJobsPlugin extends JavaPlugin implements Listener {
             return;
         }
         event.setCancelled(true);
-        event.getPlayer().sendMessage(PREFIX + ChatColor.RED + "You are muted for another "
-                + Math.max(1, (expiry - System.currentTimeMillis()) / 60000) + " minute(s).");
+        String muteMessage = getConfig().getString("settings.punishments.mute-message", "You are muted and cannot chat.");
+        event.getPlayer().sendMessage(PREFIX + ChatColor.RED + (muteMessage == null ? "You are muted and cannot chat." : muteMessage)
+                + " (" + Math.max(1, (expiry - System.currentTimeMillis()) / 60000) + " minute(s) remaining).");
     }
 
     // REPORT SYSTEM
@@ -363,7 +397,7 @@ public class StaffJobsPlugin extends JavaPlugin implements Listener {
         report.put("player", player.getName());
         report.put("message", message);
         report.put("timestamp", System.currentTimeMillis());
-        report.put("date", ZonedDateTime.now(WIB).format(dateFormatter) + " WIB");
+        report.put("date", ZonedDateTime.now(getConfiguredZone()).format(dateFormatter) + " " + getZoneLabel());
 
         List<Map<?, ?>> reports = new ArrayList<>(getReports());
         reports.add(report);
@@ -691,6 +725,12 @@ public class StaffJobsPlugin extends JavaPlugin implements Listener {
         if (!(event.getWhoClicked() instanceof Player player)) return;
         String title = event.getView().getTitle();
 
+        if (frozen.contains(player.getUniqueId())
+                && getConfig().getBoolean("settings.freeze.prevent-interaction", true)) {
+            event.setCancelled(true);
+            return;
+        }
+
         if (!title.equals(MENU) && !title.startsWith(REPORTS) && !title.equals(REPORT_DETAIL)
                 && !title.equals(PLAYERS) && !title.equals(ACTIONS) && !title.equals(CONFIRM)
                 && !title.equals("§8Staff Activity Logs") && !title.startsWith("§8Death History") && !title.equals("§8Death Rollback")) return;
@@ -954,7 +994,7 @@ public class StaffJobsPlugin extends JavaPlugin implements Listener {
             long amount = Long.parseLong(matcher.group(1));
             if (amount <= 0) return null;
             String unit = matcher.group(2);
-            ZonedDateTime expiry = ZonedDateTime.now(WIB);
+            ZonedDateTime expiry = ZonedDateTime.now(getConfiguredZone());
             switch (unit) {
                 case "s", "sec", "secs", "second", "seconds", "detik" -> expiry = expiry.plusSeconds(amount);
                 case "m", "min", "mins", "minute", "minutes", "menit" -> expiry = expiry.plusMinutes(amount);
@@ -1014,6 +1054,27 @@ public class StaffJobsPlugin extends JavaPlugin implements Listener {
                     + durationText + ". Reason: " + cleanReason);
         }
         openStaffMenu(staff);
+    }
+
+    @EventHandler
+    public void onFrozenInventoryDrag(InventoryDragEvent event) {
+        if (event.getWhoClicked() instanceof Player player
+                && frozen.contains(player.getUniqueId())
+                && getConfig().getBoolean("settings.freeze.prevent-interaction", true)) {
+            event.setCancelled(true);
+        }
+    }
+
+    @EventHandler
+    public void onFrozenSwapHands(PlayerSwapHandItemsEvent event) {
+        if (frozen.contains(event.getPlayer().getUniqueId())
+                && getConfig().getBoolean("settings.freeze.prevent-interaction", true)) event.setCancelled(true);
+    }
+
+    @EventHandler
+    public void onFrozenHotbarChange(PlayerItemHeldEvent event) {
+        if (frozen.contains(event.getPlayer().getUniqueId())
+                && getConfig().getBoolean("settings.freeze.prevent-interaction", true)) event.setCancelled(true);
     }
 
     // FREEZE SYSTEM
@@ -1109,7 +1170,7 @@ public class StaffJobsPlugin extends JavaPlugin implements Listener {
         PlayerInventory inv = player.getInventory();
         deathsData.set(base + ".uuid", player.getUniqueId().toString());
         deathsData.set(base + ".player", player.getName());
-        deathsData.set(base + ".time", ZonedDateTime.now(WIB).format(dateFormatter) + " WIB");
+        deathsData.set(base + ".time", ZonedDateTime.now(getConfiguredZone()).format(dateFormatter) + " " + getZoneLabel());
         deathsData.set(base + ".world", player.getWorld().getName());
         deathsData.set(base + ".x", player.getLocation().getBlockX());
         deathsData.set(base + ".y", player.getLocation().getBlockY());
@@ -1128,9 +1189,13 @@ public class StaffJobsPlugin extends JavaPlugin implements Listener {
                 + ChatColor.GRAY + " | World: " + player.getWorld().getName()
                 + " | Location: " + player.getLocation().getBlockX() + ", " + player.getLocation().getBlockY() + ", " + player.getLocation().getBlockZ()
                 + " | Cause: " + (event.getDeathMessage() == null ? "Unknown" : ChatColor.stripColor(event.getDeathMessage()))
-                + " | Time: " + ZonedDateTime.now(WIB).format(DateTimeFormatter.ofPattern("HH:mm:ss")) + " WIB";
-        for (Player staff : Bukkit.getOnlinePlayers()) {
-            if (staff.hasPermission("staffjobs.deathnotify")) staff.sendMessage(notice);
+                + " | Time: " + ZonedDateTime.now(getConfiguredZone()).format(DateTimeFormatter.ofPattern("HH:mm:ss")) + " " + getZoneLabel();
+        if (getConfig().getBoolean("settings.death-notifications.enabled", true)) {
+            String permission = getConfig().getString("settings.death-notifications.permission", "staffjobs.deathnotify");
+            if (permission == null || permission.isBlank()) permission = "staffjobs.deathnotify";
+            for (Player staff : Bukkit.getOnlinePlayers()) {
+                if (staff.hasPermission(permission)) staff.sendMessage(notice);
+            }
         }
         logAction(null, "PLAYER_DEATH", player.getName() + " [" + id + "]");
     }
@@ -1310,7 +1375,7 @@ public class StaffJobsPlugin extends JavaPlugin implements Listener {
         if (logsData == null) return;
         List<String> entries = logsData.getStringList("entries");
         String actor = staff == null ? "SYSTEM" : staff.getName();
-        entries.add(ZonedDateTime.now(WIB).format(dateFormatter) + " WIB | " + actor + " | " + action + " | " + target);
+        entries.add(ZonedDateTime.now(getConfiguredZone()).format(dateFormatter) + " WIB | " + actor + " | " + action + " | " + target);
         int maxEntries = getConfig().getInt("settings.activity-logs.max-entries", 500);
         while (maxEntries > 0 && entries.size() > maxEntries) entries.remove(0);
         logsData.set("entries", entries);

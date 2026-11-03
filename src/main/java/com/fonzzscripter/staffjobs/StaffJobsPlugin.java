@@ -680,7 +680,7 @@ public class StaffJobsPlugin extends JavaPlugin implements Listener {
         inventory.setItem(13, createItem(Material.BOOK, "§eReports", "§7Total reports: " + getReports().size()));
         inventory.setItem(16, createItem(Material.WRITABLE_BOOK, "§eStaff Activity Logs"));
         inventory.setItem(22, createItem(Material.TOTEM_OF_UNDYING, "§cDeath History"));
-        inventory.setItem(28, createItem(Material.PLAYER_LIST, "§bOnline Staff", "§7View currently connected staff."));
+        inventory.setItem(28, createItem(Material.NAME_TAG, "§bOnline Staff", "§7View currently connected staff."));
         inventory.setItem(34, createItem(Material.BELL, "§eNotification Settings", "§7Configure your staff alerts."));
         inventory.setItem(31, createItem(Material.BARRIER, "§cClose Menu"));
         player.openInventory(inventory);

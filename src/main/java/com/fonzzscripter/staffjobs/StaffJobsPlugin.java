@@ -941,7 +941,6 @@ public class StaffJobsPlugin extends JavaPlugin implements Listener {
                 && !title.equals("§8Staff Activity Logs") && !title.equals(STAFF_HISTORY_DETAIL)
                 && !title.startsWith("§8Death History") && !title.equals("§8Death Rollback")
                 && !title.equals(ONLINE_STAFF) && !title.equals(NOTIFICATION_SETTINGS)) return;
-                && !title.equals(ONLINE_STAFF) && !title.equals(NOTIFICATION_SETTINGS)) return;
 
         event.setCancelled(true);
         if (!player.hasPermission("staffjobs.use")) {

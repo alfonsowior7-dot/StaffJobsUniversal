@@ -1474,7 +1474,6 @@ public class StaffJobsPlugin extends JavaPlugin implements Listener {
                         + deathsData.getInt(base + ".x") + ", " + deathsData.getInt(base + ".y") + ", " + deathsData.getInt(base + ".z"),
                 "§7Level: " + deathsData.getInt(base + ".level")));
         inv.setItem(48, createItem(Material.LIME_WOOL, "§aRESTORE INVENTORY", "§7Restore the saved items to the player."));
-        if (deathsData.getBoolean(base + ".restored", false)) inv.setItem(49, createItem(Material.BARRIER, "§cALREADY RESTORED", "§7This death record has already been restored."));
         inv.setItem(50, createItem(Material.ARROW, "§eBack"));
         staff.openInventory(inv);
     }
@@ -1533,10 +1532,6 @@ public class StaffJobsPlugin extends JavaPlugin implements Listener {
 
     private void restoreDeath(Player staff, String id) {
         String base = "deaths." + id;
-        if (deathsData.getBoolean(base + ".restored", false)) {
-            staff.sendMessage(PREFIX + ChatColor.RED + "This death record has already been restored.");
-            return;
-        }
         if (!deathsData.contains(base + ".uuid")) {
             staff.sendMessage(PREFIX + ChatColor.RED + "Death record does not contain a player UUID.");
             return;
@@ -1573,12 +1568,14 @@ public class StaffJobsPlugin extends JavaPlugin implements Listener {
         target.setExp((float) deathsData.getDouble(base + ".exp"));
         target.setTotalExperience(deathsData.getInt(base + ".total-exp"));
         target.updateInventory();
-        deathsData.set(base + ".restored", true);
-        deathsData.set(base + ".restored-by", staff.getName());
-        deathsData.set(base + ".restored-at", System.currentTimeMillis());
+        int restoreCount = deathsData.getInt(base + ".restore-count", 0) + 1;
+        deathsData.set(base + ".restore-count", restoreCount);
+        deathsData.set(base + ".last-restored-by", staff.getName());
+        deathsData.set(base + ".last-restored-at", System.currentTimeMillis());
         saveDeaths();
 
-        logAction(staff, "DEATH_ROLLBACK", target.getName() + " record " + id, "UNRESTORED", "RESTORED");
+        logAction(staff, "DEATH_ROLLBACK", target.getName() + " record " + id,
+                "Saved death snapshot", "Snapshot applied (restore #" + restoreCount + ")");
         staff.sendMessage(PREFIX + ChatColor.GREEN + "Death inventory successfully restored for " + target.getName() + ".");
         target.sendMessage(PREFIX + ChatColor.GREEN + "Your inventory has been restored by a staff member.");
     }

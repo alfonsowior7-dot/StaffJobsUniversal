@@ -3,7 +3,7 @@ plugins {
 }
 
 group = 'com.fonzzscripter'
-version = '1.0.4'
+version = '1.0.0'
 
 java {
     toolchain {
@@ -29,5 +29,5 @@ tasks.withType(JavaCompile).configureEach {
 }
 
 jar {
-    archiveFileName = "StaffJobs${version}.jar"
+    archiveFileName = "StaffJobsUniversal-${version}.jar"
 }

@@ -66,6 +66,7 @@ public class StaffJobsPlugin extends JavaPlugin implements Listener {
     private static final String REPORT_DETAIL = "§8Report Details";
     private static final String ONLINE_STAFF = "§8Online Staff Status";
     private static final String NOTIFICATION_SETTINGS = "§8Notification Settings";
+    private static final String STAFF_HISTORY_DETAIL = "§8Staff History Details";
 
     private final Set<UUID> frozen = new HashSet<>();
     private final Map<UUID, UUID> selected = new HashMap<>();
@@ -104,6 +105,7 @@ public class StaffJobsPlugin extends JavaPlugin implements Listener {
     private final Map<UUID, Integer> deathPages = new HashMap<>();
     private final Map<UUID, Integer> activityPages = new HashMap<>();
     private final Map<UUID, Integer> staffHistoryPages = new HashMap<>();
+    private final Map<UUID, String> selectedHistoryStaff = new HashMap<>();
     private final Map<UUID, Long> lastReportAt = new java.util.concurrent.ConcurrentHashMap<>();
     private volatile String latestVersion;
     private volatile boolean updateCheckCompleted;
@@ -1007,8 +1009,9 @@ public class StaffJobsPlugin extends JavaPlugin implements Listener {
             } else if (slot == 22) openStaffMenu(player);
             return;
         }
-        if (title.startsWith("§8History: ")) {
-            String staffName = title.substring("§8History: ".length());
+        if (title.equals(STAFF_HISTORY_DETAIL)) {
+            String staffName = selectedHistoryStaff.get(player.getUniqueId());
+            if (staffName == null) { openActivityLogs(player, 0); return; }
             int page = staffHistoryPages.getOrDefault(player.getUniqueId(), 0);
             if (slot == 45) { openStaffHistory(player, staffName, page - 1); return; }
             if (slot == 48) { openStaffHistory(player, staffName, page); return; }
@@ -1748,8 +1751,8 @@ public class StaffJobsPlugin extends JavaPlugin implements Listener {
         int pages = Math.max(1, (matching.size() + 44) / 45);
         int page = Math.max(0, Math.min(requestedPage, pages - 1));
         staffHistoryPages.put(viewer.getUniqueId(), page);
-        String title = "§8History: " + staffName;
-        Inventory inv = Bukkit.createInventory(null, 54, title);
+        selectedHistoryStaff.put(viewer.getUniqueId(), staffName);
+        Inventory inv = Bukkit.createInventory(null, 54, STAFF_HISTORY_DETAIL);
         int end = matching.size() - (page * 45);
         int start = Math.max(0, end - 45);
         int slot = 0;

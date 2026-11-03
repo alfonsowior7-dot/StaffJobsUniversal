@@ -98,6 +98,7 @@ public class StaffJobsPlugin extends JavaPlugin implements Listener {
     private final Map<UUID, String> deathSelection = new HashMap<>();
     private final Map<UUID, Integer> deathPages = new HashMap<>();
     private final Map<UUID, Integer> activityPages = new HashMap<>();
+    private final Map<UUID, Long> lastReportAt = new java.util.concurrent.ConcurrentHashMap<>();
     private volatile String latestVersion;
     private volatile boolean updateCheckCompleted;
 
@@ -384,6 +385,14 @@ public class StaffJobsPlugin extends JavaPlugin implements Listener {
     }
 
     private void submitReport(Player player, String message) {
+        long now = System.currentTimeMillis();
+        long cooldown = Math.max(0L, getConfig().getLong("settings.reports.cooldown-seconds", 60L)) * 1000L;
+        long previous = lastReportAt.getOrDefault(player.getUniqueId(), 0L);
+        if (cooldown > 0L && now - previous < cooldown) {
+            long remaining = Math.max(1L, (cooldown - (now - previous) + 999L) / 1000L);
+            player.sendMessage(PREFIX + ChatColor.RED + "Please wait " + remaining + " second(s) before submitting another report.");
+            return;
+        }
         for (Map<?, ?> report : getReports()) {
             if (player.getUniqueId().toString().equals(reportValue(report, "uuid", ""))) {
                 player.sendMessage(PREFIX + ChatColor.RED + "You already have an unresolved report.");
@@ -392,12 +401,14 @@ public class StaffJobsPlugin extends JavaPlugin implements Listener {
         }
 
         Map<String, Object> report = new LinkedHashMap<>();
-        report.put("id", UUID.randomUUID().toString());
+        report.put("id", "R-" + Long.toString(now, 36).toUpperCase(Locale.ROOT) + "-" + UUID.randomUUID().toString().substring(0, 8).toUpperCase(Locale.ROOT));
         report.put("uuid", player.getUniqueId().toString());
         report.put("player", player.getName());
         report.put("message", message);
-        report.put("timestamp", System.currentTimeMillis());
+        report.put("timestamp", now);
         report.put("date", ZonedDateTime.now(getConfiguredZone()).format(dateFormatter) + " " + getZoneLabel());
+        report.put("status", "PENDING");
+        report.put("assigned-staff", "Unassigned");
 
         List<Map<?, ?>> reports = new ArrayList<>(getReports());
         reports.add(report);
@@ -405,8 +416,9 @@ public class StaffJobsPlugin extends JavaPlugin implements Listener {
         while (reports.size() > max) reports.remove(0);
         reportsData.set("reports", reports);
         saveReports();
+        lastReportAt.put(player.getUniqueId(), now);
 
-        player.sendMessage(PREFIX + ChatColor.GREEN + "Your report has been sent to the staff team.");
+        player.sendMessage(PREFIX + ChatColor.GREEN + "Your report has been sent to the staff team. ID: " + report.get("id"));
         if (getConfig().getBoolean("settings.reports.notify-staff", true)) {
             for (Player staff : Bukkit.getOnlinePlayers()) {
                 if (staff.hasPermission("staffjobs.use")) {

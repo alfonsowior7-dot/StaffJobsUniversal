@@ -31,6 +31,7 @@ import org.bukkit.event.inventory.InventoryType;
 import org.bukkit.inventory.PlayerInventory;
 import org.bukkit.Location;
 import org.bukkit.World;
+import org.bukkit.Sound;
 import org.bukkit.event.player.PlayerItemConsumeEvent;
 import java.time.ZoneId;
 import java.time.ZonedDateTime;
@@ -61,6 +62,8 @@ public class StaffJobsPlugin extends JavaPlugin implements Listener {
     private static final String CONFIRM = "§8Confirmation";
     private static final String REPORTS = "§8Reports";
     private static final String REPORT_DETAIL = "§8Report Details";
+    private static final String ONLINE_STAFF = "§8Online Staff Status";
+    private static final String NOTIFICATION_SETTINGS = "§8Notification Settings";
 
     private final Set<UUID> frozen = new HashSet<>();
     private final Map<UUID, UUID> selected = new HashMap<>();
@@ -407,8 +410,18 @@ public class StaffJobsPlugin extends JavaPlugin implements Listener {
         if (getConfig().getBoolean("settings.reports.notify-staff", true)) {
             for (Player staff : Bukkit.getOnlinePlayers()) {
                 if (staff.hasPermission("staffjobs.use")) {
-                    staff.sendMessage(PREFIX + ChatColor.YELLOW + player.getName() + " submitted a new report!");
-                    staff.sendMessage(ChatColor.GRAY + "Use /staffmenu to view reports.");
+                    if (notificationsData.getBoolean("preferences." + staff.getUniqueId() + ".chat", true)) {
+                        staff.sendMessage(PREFIX + ChatColor.YELLOW + player.getName() + " submitted a new report!");
+                        staff.sendMessage(ChatColor.GRAY + "Use /staffmenu to view reports.");
+                    }
+                    if (notificationsData.getBoolean("preferences." + staff.getUniqueId() + ".sound", true)) {
+                        try {
+                            Sound sound = Sound.valueOf(getConfig().getString("settings.notifications.sound", "BLOCK_NOTE_BLOCK_PLING").toUpperCase(Locale.ROOT));
+                            staff.playSound(staff.getLocation(), sound, 0.8f, 1.2f);
+                        } catch (IllegalArgumentException ignored) {
+                            getLogger().warning("Invalid notification sound in config.yml.");
+                        }
+                    }
                 }
             }
         }
@@ -667,6 +680,8 @@ public class StaffJobsPlugin extends JavaPlugin implements Listener {
         inventory.setItem(13, createItem(Material.BOOK, "§eReports", "§7Total reports: " + getReports().size()));
         inventory.setItem(16, createItem(Material.WRITABLE_BOOK, "§eStaff Activity Logs"));
         inventory.setItem(22, createItem(Material.TOTEM_OF_UNDYING, "§cDeath History"));
+        inventory.setItem(28, createItem(Material.PLAYER_LIST, "§bOnline Staff", "§7View currently connected staff."));
+        inventory.setItem(34, createItem(Material.BELL, "§eNotification Settings", "§7Configure your staff alerts."));
         inventory.setItem(31, createItem(Material.BARRIER, "§cClose Menu"));
         player.openInventory(inventory);
     }
@@ -730,7 +745,8 @@ public class StaffJobsPlugin extends JavaPlugin implements Listener {
 
         if (!title.equals(MENU) && !title.startsWith(REPORTS) && !title.equals(REPORT_DETAIL)
                 && !title.equals(PLAYERS) && !title.equals(ACTIONS) && !title.equals(CONFIRM)
-                && !title.equals("§8Staff Activity Logs") && !title.startsWith("§8Death History") && !title.equals("§8Death Rollback")) return;
+                && !title.equals("§8Staff Activity Logs") && !title.startsWith("§8Death History") && !title.equals("§8Death Rollback")
+                && !title.equals(ONLINE_STAFF) && !title.equals(NOTIFICATION_SETTINGS)) return;
 
         event.setCancelled(true);
         if (!player.hasPermission("staffjobs.use")) {
@@ -746,6 +762,8 @@ public class StaffJobsPlugin extends JavaPlugin implements Listener {
             else if (slot == 13) openReportLogs(player, 0);
             else if (slot == 16) openActivityLogs(player, 0);
             else if (slot == 22) openDeathHistory(player, 0);
+            else if (slot == 28) openOnlineStaff(player);
+            else if (slot == 34) openNotificationSettings(player);
             else if (slot == 31) player.closeInventory();
             return;
         }
@@ -783,6 +801,23 @@ public class StaffJobsPlugin extends JavaPlugin implements Listener {
             return;
         }
 
+        if (title.equals(ONLINE_STAFF)) {
+            if (slot == 49) openStaffMenu(player);
+            else if (slot == 48) openOnlineStaff(player);
+            return;
+        }
+        if (title.equals(NOTIFICATION_SETTINGS)) {
+            if (slot == 11) {
+                String path = "preferences." + player.getUniqueId() + ".chat";
+                notificationsData.set(path, !notificationsData.getBoolean(path, true));
+                saveNotifications(); openNotificationSettings(player);
+            } else if (slot == 15) {
+                String path = "preferences." + player.getUniqueId() + ".sound";
+                notificationsData.set(path, !notificationsData.getBoolean(path, true));
+                saveNotifications(); openNotificationSettings(player);
+            } else if (slot == 22) openStaffMenu(player);
+            return;
+        }
         if (title.startsWith("§8Staff Activity Logs")) {
             int page = activityPages.getOrDefault(player.getUniqueId(), 0);
             if (slot == 45) { openActivityLogs(player, page - 1); return; }
@@ -1348,6 +1383,32 @@ public class StaffJobsPlugin extends JavaPlugin implements Listener {
         logAction(staff, "DEATH_ROLLBACK", target.getName() + " record " + id);
         staff.sendMessage(PREFIX + ChatColor.GREEN + "Death inventory successfully restored for " + target.getName() + ".");
         target.sendMessage(PREFIX + ChatColor.GREEN + "Your inventory has been restored by a staff member.");
+    }
+
+    private void openOnlineStaff(Player viewer) {
+        Inventory inv = Bukkit.createInventory(null, 54, ONLINE_STAFF);
+        List<Player> staff = new ArrayList<>();
+        for (Player online : Bukkit.getOnlinePlayers()) if (online.hasPermission("staffjobs.use")) staff.add(online);
+        staff.sort(Comparator.comparing(Player::getName, String.CASE_INSENSITIVE_ORDER));
+        for (int i = 0; i < Math.min(45, staff.size()); i++) {
+            Player member = staff.get(i);
+            inv.setItem(i, createItem(Material.PLAYER_HEAD, "§a" + member.getName(), "§7Status: §aONLINE", "§7Rank: §f" + getRank(member)));
+        }
+        inv.setItem(48, createItem(Material.CLOCK, "§eRefresh", "§7Update the online staff list."));
+        inv.setItem(49, createItem(Material.ARROW, "§eBack"));
+        inv.setItem(53, createItem(Material.PAPER, "§bOnline staff: §f" + staff.size()));
+        viewer.openInventory(inv);
+    }
+
+    private void openNotificationSettings(Player player) {
+        String base = "preferences." + player.getUniqueId();
+        boolean chat = notificationsData.getBoolean(base + ".chat", true);
+        boolean sound = notificationsData.getBoolean(base + ".sound", true);
+        Inventory inv = Bukkit.createInventory(null, 27, NOTIFICATION_SETTINGS);
+        inv.setItem(11, createItem(chat ? Material.LIME_DYE : Material.GRAY_DYE, "§eChat notifications", chat ? "§aEnabled" : "§cDisabled", "§7Click to toggle."));
+        inv.setItem(15, createItem(sound ? Material.NOTE_BLOCK : Material.GRAY_DYE, "§eNotification sound", sound ? "§aEnabled" : "§cDisabled", "§7Click to toggle."));
+        inv.setItem(22, createItem(Material.ARROW, "§eBack"));
+        player.openInventory(inv);
     }
 
     private void openActivityLogs(Player staff, int requestedPage) {

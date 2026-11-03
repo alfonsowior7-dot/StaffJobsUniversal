@@ -1,6 +1,6 @@
-# STAFFJOBS UNIVERSAL 1.0.0
+# STAFFJOBS UNIVERSAL 1.0.1
 
-**Official Stable Release**
+**Universal Update — Feature Work in Progress**
 
 STAFFJOBS UNIVERSAL is a Minecraft staff management plugin designed to bring essential moderation and server administration tools together in one plugin.
 
@@ -15,9 +15,11 @@ STAFFJOBS UNIVERSAL is a Minecraft staff management plugin designed to bring ess
 - Staff notifications
 - Configurable plugin settings
 
-## 1.0.0 Release Notes
+## 1.0.1 Release Notes
 
-- Established the first official stable release of STAFFJOBS UNIVERSAL.
+- Added an Online Staff GUI showing connected staff and their permission rank.
+- Added persistent per-staff chat and sound notification toggles for new reports.
+- Added configurable notification sound through `settings.notifications.sound`.
 - Improved frozen-player interaction restrictions, including inventory clicks, dragging, hotbar switching, and off-hand swapping.
 - Kept death notifications private to staff with the configured permission.
 - Added configurable timezone handling.
@@ -48,7 +50,7 @@ The universal build is intended for these Paper version families:
 ## Installation
 
 1. Stop your Paper server.
-2. Place `StaffJobsUniversal-1.0.0.jar` in the server's `plugins` directory.
+2. Place `StaffJobsUniversal-1.0.1.jar` in the server's `plugins` directory.
 3. Start the server.
 4. Check the console for successful plugin loading.
 
@@ -64,7 +66,11 @@ gradle clean build
 
 Output:
 
-`build/libs/StaffJobsUniversal-1.0.0.jar`
+`build/libs/StaffJobsUniversal-1.0.1.jar`
+
+## 1.0.1 Development Status
+
+The following requested features are not yet included in this build: report lifecycle/history and spam cooldown, expanded GUI confirmation flows, structured before/after audit records, and scheduled/retained data backups. Do not assume these are available until a later build explicitly lists them.
 
 ## Versioning
 

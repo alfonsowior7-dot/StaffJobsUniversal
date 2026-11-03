@@ -918,6 +918,14 @@ public class StaffJobsPlugin extends JavaPlugin implements Listener {
     // INVENTORY EVENTS
 
     @EventHandler
+    public void onStaffLogsInventoryDrag(InventoryDragEvent event) {
+        String title = event.getView().getTitle();
+        if (title.equals("§8Staff Activity Logs") || title.equals(STAFF_HISTORY_DETAIL)) {
+            event.setCancelled(true);
+        }
+    }
+
+    @EventHandler
     public void onInventoryClick(InventoryClickEvent event) {
         if (!(event.getWhoClicked() instanceof Player player)) return;
         String title = event.getView().getTitle();
@@ -930,7 +938,9 @@ public class StaffJobsPlugin extends JavaPlugin implements Listener {
 
         if (!title.equals(MENU) && !title.startsWith(REPORTS) && !title.equals(REPORT_DETAIL)
                 && !title.equals(PLAYERS) && !title.equals(ACTIONS) && !title.equals(CONFIRM)
-                && !title.equals("§8Staff Activity Logs") && !title.startsWith("§8Death History") && !title.equals("§8Death Rollback")
+                && !title.equals("§8Staff Activity Logs") && !title.equals(STAFF_HISTORY_DETAIL)
+                && !title.startsWith("§8Death History") && !title.equals("§8Death Rollback")
+                && !title.equals(ONLINE_STAFF) && !title.equals(NOTIFICATION_SETTINGS)) return;
                 && !title.equals(ONLINE_STAFF) && !title.equals(NOTIFICATION_SETTINGS)) return;
 
         event.setCancelled(true);

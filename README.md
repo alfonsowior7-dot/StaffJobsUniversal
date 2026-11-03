@@ -1,31 +1,79 @@
-# STAFFJOBS Universal 1.0.4
+# STAFFJOBS UNIVERSAL 1.0.0
 
-A single-JAR build of STAFFJOBS targeting Paper servers across these Minecraft version families:
+**Official Stable Release**
 
-- Minecraft 1.20.x
-- Minecraft 1.21.x
-- Minecraft 26.x (including 26.1, 26.2, and 26.3)
+STAFFJOBS UNIVERSAL is a Minecraft staff management plugin designed to bring essential moderation and server administration tools together in one plugin.
 
-## 1.0.4 changes
+## Features
 
-- Fixed frozen-player inventory interactions, dragging, hotbar switching, and off-hand swapping.
+- Staff management system
+- Player report system
+- Staff activity logs
+- Death logs and item restoration
+- Player freeze system
+- Punishment management and history
+- Staff notifications
+- Configurable plugin settings
+
+## 1.0.0 Release Notes
+
+- Established the first official stable release of STAFFJOBS UNIVERSAL.
+- Improved frozen-player interaction restrictions, including inventory clicks, dragging, hotbar switching, and off-hand swapping.
 - Kept death notifications private to staff with the configured permission.
-- Applied configurable timezone, punishment history limit, mute message, and empty-report handling.
-- Added periodic data saving when auto-save is enabled and a final save during plugin shutdown.
+- Added configurable timezone handling.
+- Added configurable punishment history limits and mute messages.
+- Improved empty-report message validation.
+- Added periodic data saving when auto-save is enabled.
+- Added a final data save during plugin shutdown.
 
-## Build strategy
+## Platform and Runtime
 
-- One shared source code and one distributable JAR.
-- Compiled against the oldest supported Paper API (1.20.1).
-- Java 17 bytecode target to retain compatibility with older supported server runtimes.
-- `plugin.yml` uses API version `1.20`.
+- Platform: Paper
+- Java: 17
+- Minimum API target: Paper 1.20.1
+- Plugin API declaration: 1.20
 
-## Compatibility notice
+## Target Compatibility
 
-A successful build does not prove runtime compatibility with every Paper release. Test the JAR on representative servers from each version family, especially 26.x, before advertising full support. If a newer Paper release removes an API used by STAFFJOBS, the compatibility layer must be updated without raising the minimum supported server version.
+The universal build is intended for these Paper version families:
+
+- Paper 1.20.x
+- Paper 1.21.x
+- Paper 26.1
+- Paper 26.2
+- Paper 26.3
+
+**Important:** A successful build does not guarantee runtime compatibility. Each advertised server version must be tested with the same release JAR before being marked as verified.
+
+## Installation
+
+1. Stop your Paper server.
+2. Place `StaffJobsUniversal-1.0.0.jar` in the server's `plugins` directory.
+3. Start the server.
+4. Check the console for successful plugin loading.
+
+Back up your server and plugin data before installing or updating.
 
 ## Build
 
-Run `gradle build`.
+Run:
 
-Output: `StaffJobs1.0.4.jar`
+```bash
+gradle clean build
+```
+
+Output:
+
+`build/libs/StaffJobsUniversal-1.0.0.jar`
+
+## Versioning
+
+STAFFJOBS UNIVERSAL follows Semantic Versioning:
+
+- Patch releases (for example, 1.0.1) contain bug fixes.
+- Minor releases (for example, 1.1.0) introduce backward-compatible features.
+- Major releases (for example, 2.0.0) may contain breaking changes.
+
+## Support and Feedback
+
+Please report bugs with the server version, Java version, plugin version, relevant console errors, and clear reproduction steps.

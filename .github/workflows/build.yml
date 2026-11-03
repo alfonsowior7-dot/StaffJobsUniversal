@@ -21,9 +21,9 @@ jobs:
         uses: gradle/actions/setup-gradle@v4
       - name: Build universal plugin
         run: gradle clean build
-      - name: Upload universal STAFFJOBS JAR
+      - name: Upload STAFFJOBS JAR
         uses: actions/upload-artifact@v4
         with:
-          name: StaffJobs1.0.3-Universal-1.20.x_1.21.x_26.x
-          path: build/libs/StaffJobs1.0.3-Universal-1.20.x_1.21.x_26.x.jar
+          name: StaffJobs1.0.3
+          path: build/libs/StaffJobs1.0.3.jar
           if-no-files-found: error

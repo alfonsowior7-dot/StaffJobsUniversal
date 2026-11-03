@@ -1,6 +1,6 @@
-# STAFFJOBS UNIVERSAL 1.0.1
+# STAFFJOBS UNIVERSAL 1.0.2
 
-**Universal Staff Management Plugin — 1.0.1**
+**Universal Staff Management Plugin — 1.0.2**
 
 STAFFJOBS UNIVERSAL is a Minecraft staff management plugin designed to bring essential moderation and server administration tools together in one plugin.
 
@@ -15,7 +15,15 @@ STAFFJOBS UNIVERSAL is a Minecraft staff management plugin designed to bring ess
 - Staff notifications
 - Configurable plugin settings
 
-## 1.0.1 Release Notes
+## 1.0.2 Release Notes
+
+- Added report assignment to the currently viewing staff member, with protection against taking a report already assigned to another staff member.
+- Added explicit report rejection and archived `REJECTED` status alongside accepted reports.
+- Added reporter notifications for accepted and rejected reports, including offline delivery.
+- Added report action audit entries.
+- Added refresh control to Staff Activity Logs.
+- Added one-time death inventory restoration protection and restore metadata (staff and timestamp).
+- Improved death rollback audit entries with explicit before/after state.
 
 - Added an Online Staff GUI showing connected staff and their permission rank.
 - Added persistent per-staff chat and sound notification toggles for new reports.
@@ -63,7 +71,7 @@ The universal build is intended for these Paper version families:
 ## Installation
 
 1. Stop your Paper server.
-2. Place `StaffJobsUniversal-1.0.1.jar` in the server's `plugins` directory.
+2. Place `StaffJobsUniversal-1.0.2.jar` in the server's `plugins` directory.
 3. Start the server.
 4. Check the console for successful plugin loading.
 
@@ -79,13 +87,13 @@ gradle clean build
 
 Output:
 
-`build/libs/StaffJobsUniversal-1.0.1.jar`
+`build/libs/StaffJobsUniversal-1.0.2.jar`
 
 ## Versioning
 
 STAFFJOBS UNIVERSAL follows Semantic Versioning:
 
-- Patch releases (for example, 1.0.1) contain bug fixes.
+- Patch releases (for example, 1.0.2) contain bug fixes.
 - Minor releases (for example, 1.1.0) introduce backward-compatible features.
 - Major releases (for example, 2.0.0) may contain breaking changes.
 

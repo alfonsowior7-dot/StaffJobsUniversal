@@ -523,7 +523,9 @@ public class StaffJobsPlugin extends JavaPlugin implements Listener {
                 ChatColor.GRAY + "Message:",
                 ChatColor.WHITE + reportValue(report, "message", "")
         ));
-        inventory.setItem(15, createItem(Material.LIME_WOOL, "§aRESOLVE REPORT", "§7Click to resolve this report."));
+        inventory.setItem(15, createItem(Material.LIME_WOOL, "§aACCEPT REPORT", "§7Accept and archive this report."));
+        inventory.setItem(16, createItem(Material.RED_WOOL, "§cREJECT REPORT", "§7Reject and archive this report."));
+        inventory.setItem(17, createItem(Material.NAME_TAG, "§bASSIGN TO ME", "§7Assign this report to you."));
         inventory.setItem(11, createItem(Material.ARROW, "§eBack to report list"));
         player.openInventory(inventory);
     }
@@ -591,6 +593,77 @@ public class StaffJobsPlugin extends JavaPlugin implements Listener {
         }
 
         staff.sendMessage(PREFIX + ChatColor.GREEN + "Report from " + reporterName + " was resolved successfully.");
+        openReportLogs(staff, 0);
+    }
+
+    private void rejectReport(Player staff, String id) {
+        archiveReport(staff, id, "REJECTED", "Report rejected by " + staff.getName() + ".");
+    }
+
+    private void assignReport(Player staff, String id) {
+        List<Map<?, ?>> reports = new ArrayList<>(getReports());
+        for (Map<?, ?> raw : reports) {
+            if (!id.equals(reportValue(raw, "id", ""))) continue;
+            Map<String, Object> updated = new LinkedHashMap<>();
+            for (Map.Entry<?, ?> entry : raw.entrySet()) updated.put(String.valueOf(entry.getKey()), entry.getValue());
+            String assigned = reportValue(raw, "assigned-staff", "Unassigned");
+            if (!assigned.equals("Unassigned") && !assigned.equalsIgnoreCase(staff.getName())) {
+                staff.sendMessage(PREFIX + ChatColor.RED + "This report is already assigned to " + assigned + ".");
+                return;
+            }
+            updated.put("assigned-staff", staff.getName());
+            updated.put("assigned-timestamp", System.currentTimeMillis());
+            reports.set(reports.indexOf(raw), updated);
+            reportsData.set("reports", reports);
+            saveReports();
+            staff.sendMessage(PREFIX + ChatColor.GREEN + "Report " + id + " assigned to you.");
+            return;
+        }
+        staff.sendMessage(PREFIX + ChatColor.RED + "Report not found.");
+    }
+
+    private void archiveReport(Player staff, String id, String status, String reporterMessage) {
+        List<Map<?, ?>> reports = new ArrayList<>(getReports());
+        Map<?, ?> target = null;
+        for (Map<?, ?> report : reports) {
+            if (id.equals(reportValue(report, "id", ""))) { target = report; break; }
+        }
+        if (target == null) {
+            staff.sendMessage(PREFIX + ChatColor.RED + "Report not found.");
+            return;
+        }
+        String reporterName = reportValue(target, "player", "Unknown");
+        String reporterUUID = reportValue(target, "uuid", "");
+        Map<String, Object> archived = new LinkedHashMap<>();
+        for (Map.Entry<?, ?> entry : target.entrySet()) archived.put(String.valueOf(entry.getKey()), entry.getValue());
+        archived.put("status", status);
+        archived.put("assigned-staff", staff.getName());
+        archived.put("resolved-timestamp", System.currentTimeMillis());
+        archived.put("resolved-date", ZonedDateTime.now(getConfiguredZone()).format(dateFormatter) + " " + getZoneLabel());
+        List<Map<?, ?>> history = new ArrayList<>(reportsData.getMapList("history"));
+        history.add(archived);
+        int limit = Math.max(1, getConfig().getInt("settings.reports.max-history", 500));
+        while (history.size() > limit) history.remove(0);
+        reportsData.set("history", history);
+        reports.remove(target);
+        reportsData.set("reports", reports);
+        saveReports();
+        logAction(staff, "REPORT_" + status, reporterName + " [" + id + "]");
+        try {
+            UUID uuid = UUID.fromString(reporterUUID);
+            Player reporter = Bukkit.getPlayer(uuid);
+            if (reporter != null) reporter.sendMessage(PREFIX + ChatColor.YELLOW + reporterMessage);
+            else {
+                String path = "pending." + reporterUUID;
+                List<String> pending = notificationsData.getStringList(path);
+                pending.add(PREFIX + ChatColor.YELLOW + reporterMessage);
+                notificationsData.set(path, pending);
+                saveNotifications();
+            }
+        } catch (IllegalArgumentException exception) {
+            getLogger().warning("Invalid reporter UUID: " + reporterUUID);
+        }
+        staff.sendMessage(PREFIX + ChatColor.GREEN + "Report " + id + " " + status.toLowerCase(Locale.ROOT) + ".");
         openReportLogs(staff, 0);
     }
 
@@ -906,6 +979,12 @@ public class StaffJobsPlugin extends JavaPlugin implements Listener {
             else if (slot == 15) {
                 String id = selectedReports.get(player.getUniqueId());
                 if (id != null) completeReport(player, id);
+            } else if (slot == 16) {
+                String id = selectedReports.get(player.getUniqueId());
+                if (id != null) rejectReport(player, id);
+            } else if (slot == 17) {
+                String id = selectedReports.get(player.getUniqueId());
+                if (id != null) assignReport(player, id);
             }
             return;
         }
@@ -930,6 +1009,7 @@ public class StaffJobsPlugin extends JavaPlugin implements Listener {
         if (title.startsWith("§8Staff Activity Logs")) {
             int page = activityPages.getOrDefault(player.getUniqueId(), 0);
             if (slot == 45) { openActivityLogs(player, page - 1); return; }
+            if (slot == 48) { openActivityLogs(player, page); return; }
             if (slot == 49) { openStaffMenu(player); return; }
             if (slot == 53) { openActivityLogs(player, page + 1); return; }
             return;
@@ -1394,6 +1474,7 @@ public class StaffJobsPlugin extends JavaPlugin implements Listener {
                         + deathsData.getInt(base + ".x") + ", " + deathsData.getInt(base + ".y") + ", " + deathsData.getInt(base + ".z"),
                 "§7Level: " + deathsData.getInt(base + ".level")));
         inv.setItem(48, createItem(Material.LIME_WOOL, "§aRESTORE INVENTORY", "§7Restore the saved items to the player."));
+        if (deathsData.getBoolean(base + ".restored", false)) inv.setItem(49, createItem(Material.BARRIER, "§cALREADY RESTORED", "§7This death record has already been restored."));
         inv.setItem(50, createItem(Material.ARROW, "§eBack"));
         staff.openInventory(inv);
     }
@@ -1452,6 +1533,10 @@ public class StaffJobsPlugin extends JavaPlugin implements Listener {
 
     private void restoreDeath(Player staff, String id) {
         String base = "deaths." + id;
+        if (deathsData.getBoolean(base + ".restored", false)) {
+            staff.sendMessage(PREFIX + ChatColor.RED + "This death record has already been restored.");
+            return;
+        }
         if (!deathsData.contains(base + ".uuid")) {
             staff.sendMessage(PREFIX + ChatColor.RED + "Death record does not contain a player UUID.");
             return;
@@ -1488,8 +1573,12 @@ public class StaffJobsPlugin extends JavaPlugin implements Listener {
         target.setExp((float) deathsData.getDouble(base + ".exp"));
         target.setTotalExperience(deathsData.getInt(base + ".total-exp"));
         target.updateInventory();
+        deathsData.set(base + ".restored", true);
+        deathsData.set(base + ".restored-by", staff.getName());
+        deathsData.set(base + ".restored-at", System.currentTimeMillis());
+        saveDeaths();
 
-        logAction(staff, "DEATH_ROLLBACK", target.getName() + " record " + id);
+        logAction(staff, "DEATH_ROLLBACK", target.getName() + " record " + id, "UNRESTORED", "RESTORED");
         staff.sendMessage(PREFIX + ChatColor.GREEN + "Death inventory successfully restored for " + target.getName() + ".");
         target.sendMessage(PREFIX + ChatColor.GREEN + "Your inventory has been restored by a staff member.");
     }
@@ -1609,6 +1698,7 @@ public class StaffJobsPlugin extends JavaPlugin implements Listener {
             inv.setItem(slot++, createItem(Material.WRITABLE_BOOK, "§eLog #" + (i + 1), "§7" + entries.get(i)));
         }
         inv.setItem(45, createItem(Material.ARROW, "§ePrevious Page"));
+        inv.setItem(48, createItem(Material.CLOCK, "§bRefresh"));
         inv.setItem(49, createItem(Material.ARROW, "§eBack", "§7Page " + (page + 1) + "/" + pages));
         inv.setItem(53, createItem(Material.ARROW, "§eNext Page"));
         staff.openInventory(inv);

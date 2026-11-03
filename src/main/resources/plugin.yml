@@ -9,6 +9,10 @@ commands:
   staffjobs:
     description: Display STAFFJOBS version and author information
     usage: /staffjobs
+  staffbackup:
+    description: Create, list, or restore STAFFJOBS data backups
+    usage: /staffbackup [create|list|restore <backup-name>]
+    permission: staffjobs.backup
   staffmenu:
     description: Open STAFFJOBS management menu
     usage: /staffmenu
@@ -35,6 +39,9 @@ commands:
     permission: staffjobs.punishments
 
 permissions:
+  staffjobs.backup:
+    description: Create and restore STAFFJOBS data backups
+    default: op
   staffjobs.updatecheck:
     description: Receive STAFFJOBS version update notifications
     default: op

@@ -1,0 +1,1372 @@
+package com.fonzzscripter.staffjobs;
+
+import org.bukkit.BanList;
+import org.bukkit.Bukkit;
+import org.bukkit.ChatColor;
+import org.bukkit.Material;
+import org.bukkit.command.Command;
+import org.bukkit.command.CommandSender;
+import org.bukkit.configuration.file.YamlConfiguration;
+import org.bukkit.configuration.serialization.ConfigurationSerialization;
+import org.bukkit.entity.Player;
+import org.bukkit.entity.Projectile;
+import org.bukkit.event.EventHandler;
+import org.bukkit.event.Listener;
+import org.bukkit.event.inventory.InventoryClickEvent;
+import org.bukkit.event.player.PlayerJoinEvent;
+import org.bukkit.event.player.AsyncPlayerChatEvent;
+import org.bukkit.event.player.PlayerMoveEvent;
+import org.bukkit.event.player.PlayerInteractEvent;
+import org.bukkit.event.player.PlayerInteractEntityEvent;
+import org.bukkit.event.block.BlockBreakEvent;
+import org.bukkit.event.block.BlockPlaceEvent;
+import org.bukkit.event.player.PlayerDropItemEvent;
+import org.bukkit.event.player.PlayerPickupItemEvent;
+import org.bukkit.event.entity.PlayerDeathEvent;
+import org.bukkit.event.player.PlayerRespawnEvent;
+import org.bukkit.event.inventory.InventoryType;
+import org.bukkit.inventory.PlayerInventory;
+import org.bukkit.Location;
+import org.bukkit.World;
+import org.bukkit.event.player.PlayerItemConsumeEvent;
+import java.time.ZoneId;
+import java.time.ZonedDateTime;
+import org.bukkit.event.entity.EntityDamageByEntityEvent;
+import org.bukkit.inventory.Inventory;
+import org.bukkit.inventory.ItemStack;
+import org.bukkit.inventory.meta.ItemMeta;
+import org.bukkit.plugin.java.JavaPlugin;
+
+import java.io.File;
+import java.io.IOException;
+import java.io.BufferedReader;
+import java.io.InputStreamReader;
+import java.net.HttpURLConnection;
+import java.net.URL;
+import java.nio.charset.StandardCharsets;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
+import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
+import java.util.*;
+
+public class StaffJobsPlugin extends JavaPlugin implements Listener {
+    private static final String PREFIX = ChatColor.YELLOW + "[ʜᴇʟᴘᴇʀꜱᴛᴀꜰꜰ] ";
+    private static final String MENU = "§8STAFFJOBS";
+    private static final String PLAYERS = "§8Select Player";
+    private static final String ACTIONS = "§8Manage Player";
+    private static final String CONFIRM = "§8Confirmation";
+    private static final String REPORTS = "§8Reports";
+    private static final String REPORT_DETAIL = "§8Report Details";
+
+    private final Set<UUID> frozen = new HashSet<>();
+    private final Map<UUID, UUID> selected = new HashMap<>();
+    private final Map<UUID, String> pendingAction = new java.util.concurrent.ConcurrentHashMap<>();
+    private final Map<UUID, String> pendingReason = new java.util.concurrent.ConcurrentHashMap<>();
+    private final Map<UUID, Integer> reportPages = new HashMap<>();
+    private final Map<UUID, Integer> playerPages = new HashMap<>();
+    private final Map<UUID, String> selectedReports = new HashMap<>();
+
+    private File frozenFile, reportsFile, notificationsFile, logsFile, deathsFile, punishmentsFile;
+    private YamlConfiguration frozenData, reportsData, notificationsData, logsData, deathsData, punishmentsData;
+    private final Map<UUID, Long> mutedUntil = new java.util.concurrent.ConcurrentHashMap<>();
+    private final DateTimeFormatter dateFormatter = DateTimeFormatter.ofPattern("dd-MM-yyyy HH:mm:ss");
+    private static final ZoneId WIB = ZoneId.of("Asia/Jakarta");
+    private final Map<UUID, String> deathSelection = new HashMap<>();
+    private final Map<UUID, Integer> deathPages = new HashMap<>();
+    private final Map<UUID, Integer> activityPages = new HashMap<>();
+    private volatile String latestVersion;
+    private volatile boolean updateCheckCompleted;
+
+    @Override
+    public void onEnable() {
+        saveDefaultConfig();
+        loadFrozen();
+        loadReports();
+        loadNotifications();
+        loadLogs();
+        loadDeaths();
+        loadPunishments();
+        getServer().getPluginManager().registerEvents(this, this);
+        if (getConfig().getBoolean("settings.update-check.enabled", true)) checkForUpdates();
+        Objects.requireNonNull(getCommand("staffmenu")).setExecutor(this);
+        Objects.requireNonNull(getCommand("report")).setExecutor(this);
+        Bukkit.getScheduler().runTaskTimer(this, this::removeExpiredReports, 20L * 60L, 20L * 60L);
+        getLogger().info("STAFFJOBS has been enabled successfully!");
+    }
+
+    @Override
+    public void onDisable() {
+        saveFrozen();
+        saveReports();
+        savePunishments();
+        saveNotifications();
+        selected.clear();
+        pendingAction.clear();
+        pendingReason.clear();
+        reportPages.clear();
+        playerPages.clear();
+        activityPages.clear();
+        selectedReports.clear();
+    }
+
+    // DATA STORAGE
+
+    private void loadFrozen() {
+        frozenFile = new File(getDataFolder(), "frozen.yml");
+        if (!getDataFolder().exists()) getDataFolder().mkdirs();
+        frozenData = YamlConfiguration.loadConfiguration(frozenFile);
+        for (String value : frozenData.getStringList("frozen-players")) {
+            try {
+                frozen.add(UUID.fromString(value));
+            } catch (IllegalArgumentException ignored) {
+                getLogger().warning("Invalid freeze UUID: " + value);
+            }
+        }
+    }
+
+    private void saveFrozen() {
+        if (frozenData == null) return;
+        List<String> values = new ArrayList<>();
+        for (UUID uuid : frozen) values.add(uuid.toString());
+        frozenData.set("frozen-players", values);
+        saveFile(frozenData, frozenFile);
+    }
+
+    private void loadReports() {
+        reportsFile = new File(getDataFolder(), "reports.yml");
+        reportsData = YamlConfiguration.loadConfiguration(reportsFile);
+        if (!reportsData.contains("reports")) {
+            reportsData.set("reports", new ArrayList<>());
+            saveReports();
+        }
+    }
+
+    private void saveReports() {
+        if (reportsData != null) saveFile(reportsData, reportsFile);
+    }
+
+    private void loadNotifications() {
+        notificationsFile = new File(getDataFolder(), "notifications.yml");
+        notificationsData = YamlConfiguration.loadConfiguration(notificationsFile);
+    }
+
+    private void saveNotifications() {
+        if (notificationsData != null) saveFile(notificationsData, notificationsFile);
+    }
+
+    private void saveFile(YamlConfiguration data, File file) {
+        try {
+            data.save(file);
+        } catch (IOException exception) {
+            getLogger().severe("Failed to save " + file.getName());
+            exception.printStackTrace();
+        }
+    }
+
+    // COMMANDS
+
+    @Override
+    public boolean onCommand(CommandSender sender, Command command, String label, String[] args) {
+        if (command.getName().equalsIgnoreCase("staffjobs")) {
+            String version = getDescription().getVersion();
+            String author = getDescription().getAuthors().isEmpty()
+                    ? "Unknown"
+                    : String.join(", ", getDescription().getAuthors());
+            sender.sendMessage("§8§m----------------------------------------");
+            sender.sendMessage("§b§lSTAFFJOBS §7Plugin Information");
+            sender.sendMessage("§7Version: §a" + version);
+            sender.sendMessage("§7Author: §f" + author);
+            sender.sendMessage("§7Description: §f" + getDescription().getDescription());
+            sender.sendMessage("§8§m----------------------------------------");
+            return true;
+        }
+
+        if (command.getName().equalsIgnoreCase("staffmenu")) {
+            if (!(sender instanceof Player player)) {
+                sender.sendMessage("This command can only be used by players.");
+                return true;
+            }
+            if (!player.hasPermission("staffjobs.use")) {
+                player.sendMessage(PREFIX + ChatColor.RED + "You do not have permission.");
+                return true;
+            }
+            openStaffMenu(player);
+            return true;
+        }
+
+
+        if (command.getName().equalsIgnoreCase("warn")
+                || command.getName().equalsIgnoreCase("mute")
+                || command.getName().equalsIgnoreCase("unmute")
+                || command.getName().equalsIgnoreCase("punishments")) {
+            String action = command.getName().toLowerCase(Locale.ROOT);
+            if (!sender.hasPermission("staffjobs." + action)) {
+                sender.sendMessage(PREFIX + ChatColor.RED + "You do not have permission.");
+                return true;
+            }
+            int minimum = action.equals("warn") ? 2 : action.equals("mute") ? 3 : 1;
+            if (args.length < minimum) {
+                sender.sendMessage(PREFIX + ChatColor.RED + "Usage: /" + action + " " +
+                        (action.equals("warn") ? "<player> <reason>" :
+                         action.equals("mute") ? "<player> <duration> <reason>" : "<player>"));
+                return true;
+            }
+            Player target = Bukkit.getPlayerExact(args[0]);
+            if (target == null) {
+                sender.sendMessage(PREFIX + ChatColor.RED + "Player must be online.");
+                return true;
+            }
+            if (sender instanceof Player staff && !canPunish(staff, target)) {
+                sender.sendMessage(PREFIX + ChatColor.RED + "You cannot punish yourself or an equal/higher-ranked player.");
+                return true;
+            }
+            String actor = sender.getName();
+            if (action.equals("warn")) {
+                String reason = String.join(" ", Arrays.copyOfRange(args, 1, args.length));
+                addPunishment(target, "WARN", reason, actor, 0L);
+                target.sendMessage(PREFIX + ChatColor.YELLOW + "You have received a warning: " + reason);
+                sender.sendMessage(PREFIX + ChatColor.GREEN + "Warning issued to " + target.getName() + ".");
+            } else if (action.equals("mute")) {
+                Date expiry = parseBanExpiry(args[1]);
+                if (expiry == null) {
+                    sender.sendMessage(PREFIX + ChatColor.RED + "Invalid duration. Examples: 10m, 2h, 1d.");
+                    return true;
+                }
+                String reason = String.join(" ", Arrays.copyOfRange(args, 2, args.length));
+                long until = expiry.getTime();
+                mutedUntil.put(target.getUniqueId(), until);
+                addPunishment(target, "MUTE", reason, actor, until);
+                target.sendMessage(PREFIX + ChatColor.RED + "You have been muted for " + args[1] + ". Reason: " + reason);
+                sender.sendMessage(PREFIX + ChatColor.GREEN + target.getName() + " muted for " + args[1] + ".");
+            } else if (action.equals("unmute")) {
+                mutedUntil.remove(target.getUniqueId());
+                addPunishment(target, "UNMUTE", "Mute removed", actor, 0L);
+                sender.sendMessage(PREFIX + ChatColor.GREEN + target.getName() + " has been unmuted.");
+                target.sendMessage(PREFIX + ChatColor.GREEN + "Your mute has been removed.");
+            } else {
+                List<String> history = punishmentsData.getStringList("players." + target.getUniqueId());
+                sender.sendMessage("§8§m---------------- STAFFJOBS HISTORY ----------------");
+                sender.sendMessage("§ePunishment history for §f" + target.getName());
+                if (history.isEmpty()) sender.sendMessage("§7No punishment records.");
+                else for (String entry : history) sender.sendMessage("§7" + entry);
+                sender.sendMessage("§8§m---------------------------------------------------");
+            }
+            savePunishments();
+            return true;
+        }
+
+        if (command.getName().equalsIgnoreCase("report")) {
+            if (!(sender instanceof Player player)) {
+                sender.sendMessage("This command can only be used by players.");
+                return true;
+            }
+            if (!player.hasPermission("staffjobs.report")) {
+                player.sendMessage(PREFIX + ChatColor.RED + "You do not have permission.");
+                return true;
+            }
+            if (args.length == 0) {
+                player.sendMessage(PREFIX + ChatColor.RED + "Usage: /report <message>");
+                return true;
+            }
+            String message = String.join(" ", args).trim();
+            if (message.isEmpty()) {
+                player.sendMessage(PREFIX + ChatColor.RED + "Report message cannot be empty.");
+                return true;
+            }
+            submitReport(player, message);
+            return true;
+        }
+        return false;
+    }
+
+
+    private boolean canPunish(Player staff, Player target) {
+        if (staff.getUniqueId().equals(target.getUniqueId())) return false;
+        return staff.hasPermission("staffjobs.protect.bypass") || getRank(staff) > getRank(target);
+    }
+
+    private void loadPunishments() {
+        punishmentsFile = new File(getDataFolder(), "punishments.yml");
+        punishmentsData = YamlConfiguration.loadConfiguration(punishmentsFile);
+        if (punishmentsData.getConfigurationSection("mute-expiry") != null) {
+            for (String key : punishmentsData.getConfigurationSection("mute-expiry").getKeys(false)) {
+                try {
+                    long expiry = punishmentsData.getLong("mute-expiry." + key);
+                    if (expiry > System.currentTimeMillis()) mutedUntil.put(UUID.fromString(key), expiry);
+                } catch (IllegalArgumentException ignored) {
+                    getLogger().warning("Invalid muted player UUID: " + key);
+                }
+            }
+        }
+    }
+
+    private void savePunishments() {
+        if (punishmentsData == null) return;
+        punishmentsData.set("mute-expiry", null);
+        for (Map.Entry<UUID, Long> entry : mutedUntil.entrySet()) {
+            if (entry.getValue() > System.currentTimeMillis()) {
+                punishmentsData.set("mute-expiry." + entry.getKey(), entry.getValue());
+            }
+        }
+        saveFile(punishmentsData, punishmentsFile);
+    }
+
+    private void addPunishment(Player target, String type, String reason, String actor, long expiry) {
+        String path = "players." + target.getUniqueId();
+        List<String> history = punishmentsData.getStringList(path);
+        String record = ZonedDateTime.now(WIB).format(dateFormatter) + " WIB | " + type
+                + " | By: " + actor + " | Reason: " + reason
+                + (expiry > 0 ? " | Expires: " + ZonedDateTime.ofInstant(
+                        java.time.Instant.ofEpochMilli(expiry), WIB).format(dateFormatter) + " WIB" : "");
+        history.add(record);
+        while (history.size() > 100) history.remove(0);
+        punishmentsData.set(path, history);
+    }
+
+    @EventHandler
+    public void onMutedChat(AsyncPlayerChatEvent event) {
+        Long expiry = mutedUntil.get(event.getPlayer().getUniqueId());
+        if (expiry == null) return;
+        if (expiry <= System.currentTimeMillis()) {
+            mutedUntil.remove(event.getPlayer().getUniqueId());
+            Bukkit.getScheduler().runTask(this, this::savePunishments);
+            return;
+        }
+        event.setCancelled(true);
+        event.getPlayer().sendMessage(PREFIX + ChatColor.RED + "You are muted for another "
+                + Math.max(1, (expiry - System.currentTimeMillis()) / 60000) + " minute(s).");
+    }
+
+    // REPORT SYSTEM
+
+    private List<Map<?, ?>> getReports() {
+        return reportsData.getMapList("reports");
+    }
+
+    private String reportValue(Map<?, ?> report, String key, String fallback) {
+        Object value = report.get(key);
+        return value == null ? fallback : String.valueOf(value);
+    }
+
+    private void submitReport(Player player, String message) {
+        for (Map<?, ?> report : getReports()) {
+            if (player.getUniqueId().toString().equals(reportValue(report, "uuid", ""))) {
+                player.sendMessage(PREFIX + ChatColor.RED + "You already have an unresolved report.");
+                return;
+            }
+        }
+
+        Map<String, Object> report = new LinkedHashMap<>();
+        report.put("id", UUID.randomUUID().toString());
+        report.put("uuid", player.getUniqueId().toString());
+        report.put("player", player.getName());
+        report.put("message", message);
+        report.put("timestamp", System.currentTimeMillis());
+        report.put("date", ZonedDateTime.now(WIB).format(dateFormatter) + " WIB");
+
+        List<Map<?, ?>> reports = new ArrayList<>(getReports());
+        reports.add(report);
+        int max = Math.max(1, getConfig().getInt("settings.max-reports", 100));
+        while (reports.size() > max) reports.remove(0);
+        reportsData.set("reports", reports);
+        saveReports();
+
+        player.sendMessage(PREFIX + ChatColor.GREEN + "Your report has been sent to the staff team.");
+        if (getConfig().getBoolean("settings.reports.notify-staff", true)) {
+            for (Player staff : Bukkit.getOnlinePlayers()) {
+                if (staff.hasPermission("staffjobs.use")) {
+                    staff.sendMessage(PREFIX + ChatColor.YELLOW + player.getName() + " submitted a new report!");
+                    staff.sendMessage(ChatColor.GRAY + "Use /staffmenu to view reports.");
+                }
+            }
+        }
+    }
+
+    private void openReportLogs(Player player, int page) {
+        List<Map<?, ?>> reports = getReports();
+        int maxPages = Math.max(1, (reports.size() + 44) / 45);
+        page = Math.max(0, Math.min(page, maxPages - 1));
+        reportPages.put(player.getUniqueId(), page);
+
+        Inventory inventory = Bukkit.createInventory(null, 54, REPORTS + " §7(" + (page + 1) + "/" + maxPages + ")");
+        int start = page * 45;
+        int end = Math.min(start + 45, reports.size());
+
+        for (int i = start; i < end; i++) {
+            Map<?, ?> report = reports.get(i);
+            inventory.setItem(i - start, createItem(
+                    Material.PAPER,
+                    ChatColor.YELLOW + reportValue(report, "player", "Unknown"),
+                    ChatColor.GRAY + "Time: " + reportValue(report, "date", "Unknown"),
+                    ChatColor.GRAY + "Report: " + reportValue(report, "message", ""),
+                    "",
+                    ChatColor.GREEN + "Click to view details."
+            ));
+        }
+        inventory.setItem(45, createItem(Material.ARROW, "§ePrevious Page"));
+        inventory.setItem(49, createItem(Material.BARRIER, "§cBack"));
+        inventory.setItem(53, createItem(Material.ARROW, "§eNext Page"));
+        player.openInventory(inventory);
+    }
+
+    private void openReportDetail(Player player, String id) {
+        Map<?, ?> report = findReport(id);
+        if (report == null) {
+            player.sendMessage(PREFIX + ChatColor.RED + "Report not found.");
+            openReportLogs(player, 0);
+            return;
+        }
+        selectedReports.put(player.getUniqueId(), id);
+        Inventory inventory = Bukkit.createInventory(null, 27, REPORT_DETAIL);
+        inventory.setItem(13, createItem(
+                Material.PAPER,
+                ChatColor.YELLOW + "Report from " + reportValue(report, "player", "Unknown"),
+                ChatColor.GRAY + "Time: " + reportValue(report, "date", "Unknown"),
+                ChatColor.GRAY + "Message:",
+                ChatColor.WHITE + reportValue(report, "message", "")
+        ));
+        inventory.setItem(15, createItem(Material.LIME_WOOL, "§aRESOLVE REPORT", "§7Click to resolve this report."));
+        inventory.setItem(11, createItem(Material.ARROW, "§eBack to report list"));
+        player.openInventory(inventory);
+    }
+
+    private Map<?, ?> findReport(String id) {
+        for (Map<?, ?> report : getReports()) {
+            if (id.equals(reportValue(report, "id", ""))) return report;
+        }
+        return null;
+    }
+
+    private void completeReport(Player staff, String id) {
+        List<Map<?, ?>> reports = new ArrayList<>(getReports());
+        Map<?, ?> target = null;
+        for (Map<?, ?> report : reports) {
+            if (id.equals(reportValue(report, "id", ""))) {
+                target = report;
+                break;
+            }
+        }
+        if (target == null) {
+            staff.sendMessage(PREFIX + ChatColor.RED + "Report not found.");
+            return;
+        }
+
+        String reporterName = reportValue(target, "player", "Unknown");
+        String reporterUUID = reportValue(target, "uuid", "");
+        reports.remove(target);
+        reportsData.set("reports", reports);
+        saveReports();
+
+        String staffMessage = PREFIX + ChatColor.YELLOW + staff.getName()
+                + " resolved the report from " + reporterName;
+        for (Player online : Bukkit.getOnlinePlayers()) {
+            if (online.hasPermission("staffjobs.use")) online.sendMessage(staffMessage);
+        }
+
+        String notification = PREFIX + ChatColor.GREEN + "Hello, the staff team has resolved your report.\n"
+                + PREFIX + ChatColor.YELLOW + "If your issue has not been resolved, please submit another report.";
+        try {
+            UUID uuid = UUID.fromString(reporterUUID);
+            Player reporter = Bukkit.getPlayer(uuid);
+            if (reporter != null && reporter.isOnline()) {
+                reporter.sendMessage(notification);
+            } else {
+                String path = "pending." + reporterUUID;
+                List<String> pending = notificationsData.getStringList(path);
+                pending.add(notification);
+                notificationsData.set(path, pending);
+                saveNotifications();
+            }
+        } catch (IllegalArgumentException exception) {
+            getLogger().warning("Invalid reporter UUID: " + reporterUUID);
+        }
+
+        staff.sendMessage(PREFIX + ChatColor.GREEN + "Report from " + reporterName + " was resolved successfully.");
+        openReportLogs(staff, 0);
+    }
+
+    private void removeExpiredReports() {
+        long now = System.currentTimeMillis();
+        long expirationHours = getConfig().getLong("settings.reports.expiration-hours", 0L);
+        if (expirationHours <= 0L) return;
+        long expiration = expirationHours * 60L * 60L * 1000L;
+        List<Map<?, ?>> reports = new ArrayList<>(getReports());
+        boolean changed = false;
+        Iterator<Map<?, ?>> iterator = reports.iterator();
+
+        while (iterator.hasNext()) {
+            Map<?, ?> report = iterator.next();
+            long timestamp;
+            try {
+                timestamp = Long.parseLong(reportValue(report, "timestamp", "0"));
+            } catch (NumberFormatException exception) {
+                timestamp = 0;
+            }
+            if (timestamp > 0 && now - timestamp >= expiration) {
+                iterator.remove();
+                changed = true;
+            }
+        }
+        if (changed) {
+            reportsData.set("reports", reports);
+            saveReports();
+            getLogger().info("Expired reports have been cleared.");
+        }
+    }
+
+    // VERSION UPDATE CHECK
+
+    private void checkForUpdates() {
+        Bukkit.getScheduler().runTaskAsynchronously(this, () -> {
+            HttpURLConnection connection = null;
+            String foundVersion = null;
+            try {
+                String repositoryUrl = getConfig().getString("settings.update-check.repository", "");
+                if (repositoryUrl == null || repositoryUrl.isBlank()) {
+                    String apiVersion = getDescription().getAPIVersion();
+                    String repository = apiVersion != null && apiVersion.startsWith("26.")
+                            ? "STAFFJOBS-26.3" : "STAFFJOBS";
+                    repositoryUrl = "https://raw.githubusercontent.com/alfonsowior7-dot/" + repository
+                            + "/main/src/main/resources/plugin.yml";
+                }
+                URL url = new URL(repositoryUrl.trim());
+                connection = (HttpURLConnection) url.openConnection();
+                connection.setRequestMethod("GET");
+                connection.setConnectTimeout(5000);
+                connection.setReadTimeout(5000);
+                connection.setRequestProperty("User-Agent", "STAFFJOBS-VersionChecker");
+                if (connection.getResponseCode() == HttpURLConnection.HTTP_OK) {
+                    try (BufferedReader reader = new BufferedReader(
+                            new InputStreamReader(connection.getInputStream(), StandardCharsets.UTF_8))) {
+                        String line;
+                        Pattern pattern = Pattern.compile("^\\s*version\\s*:\\s*['\\\"]?([^'\\\"\\s]+)");
+                        while ((line = reader.readLine()) != null) {
+                            Matcher matcher = pattern.matcher(line);
+                            if (matcher.find()) {
+                                foundVersion = matcher.group(1).trim();
+                                break;
+                            }
+                        }
+                    }
+                }
+            } catch (Exception exception) {
+                getLogger().warning("Could not check for updates: " + exception.getMessage());
+            } finally {
+                if (connection != null) connection.disconnect();
+            }
+
+            final String remoteVersion = foundVersion;
+            Bukkit.getScheduler().runTask(this, () -> {
+                latestVersion = remoteVersion;
+                updateCheckCompleted = true;
+                if (latestVersion == null || latestVersion.isBlank()) {
+                    getLogger().warning("Version check could not retrieve the latest version.");
+                    return;
+                }
+                for (Player online : Bukkit.getOnlinePlayers()) {
+                    sendVersionNotice(online);
+                }
+                if (isNewerVersion(latestVersion, getDescription().getVersion())) {
+                    getLogger().warning("A new version is available: " + latestVersion
+                            + " (installed: " + getDescription().getVersion() + ").");
+                }
+            });
+        });
+    }
+
+    private void sendVersionNotice(Player player) {
+        if (!player.hasPermission("staffjobs.updatecheck")) return;
+        if (latestVersion == null || latestVersion.isBlank()) return;
+        String current = getDescription().getVersion();
+        player.sendMessage("§8§m----------------------------------------");
+        player.sendMessage("§b§lSTAFFJOBS §7Version Information");
+        player.sendMessage("§7Installed version: §f" + current);
+        if (isNewerVersion(latestVersion, current)) {
+            player.sendMessage("§7Latest version: §a" + latestVersion + " §e(UPDATE AVAILABLE)");
+            player.sendMessage("§ePlease ask an administrator to update STAFFJOBS.");
+        } else {
+            player.sendMessage("§7Latest version: §a" + latestVersion + " §a(UP TO DATE)");
+        }
+        player.sendMessage("§8§m----------------------------------------");
+    }
+
+    private boolean isNewerVersion(String latest, String current) {
+        try {
+            String[] latestParts = latest.replaceFirst("^[vV]", "").split("[.-]");
+            String[] currentParts = current.replaceFirst("^[vV]", "").split("[.-]");
+            int length = Math.max(latestParts.length, currentParts.length);
+            for (int i = 0; i < length; i++) {
+                int latestPart = i < latestParts.length ? Integer.parseInt(latestParts[i]) : 0;
+                int currentPart = i < currentParts.length ? Integer.parseInt(currentParts[i]) : 0;
+                if (latestPart != currentPart) return latestPart > currentPart;
+            }
+        } catch (NumberFormatException ignored) {
+            return !latest.equalsIgnoreCase(current);
+        }
+        return false;
+    }
+
+    // OFFLINE NOTIFICATIONS
+
+    @EventHandler
+    public void onJoin(PlayerJoinEvent event) {
+        Player player = event.getPlayer();
+        if (updateCheckCompleted) {
+            sendVersionNotice(player);
+        }
+        if (frozen.contains(player.getUniqueId())) {
+            player.sendMessage(PREFIX + ChatColor.RED + "You are still FROZEN by a staff member.");
+        }
+
+        String path = "pending." + player.getUniqueId();
+        List<String> pending = notificationsData.getStringList(path);
+        if (!pending.isEmpty()) {
+            for (String message : pending) player.sendMessage(message);
+            notificationsData.set(path, null);
+            saveNotifications();
+        }
+    }
+
+    // STAFF MENU
+
+    private void openStaffMenu(Player player) {
+        Inventory inventory = Bukkit.createInventory(null, 45, MENU);
+        inventory.setItem(10, createItem(Material.PLAYER_HEAD, "§eManage Players"));
+        inventory.setItem(13, createItem(Material.BOOK, "§eReports", "§7Total reports: " + getReports().size()));
+        inventory.setItem(16, createItem(Material.WRITABLE_BOOK, "§eStaff Activity Logs"));
+        inventory.setItem(22, createItem(Material.TOTEM_OF_UNDYING, "§cDeath History"));
+        inventory.setItem(31, createItem(Material.BARRIER, "§cClose Menu"));
+        player.openInventory(inventory);
+    }
+
+    private void openPlayers(Player player) {
+        openPlayers(player, playerPages.getOrDefault(player.getUniqueId(), 0));
+    }
+
+    private void openPlayers(Player player, int requestedPage) {
+        List<Player> online = new ArrayList<>(Bukkit.getOnlinePlayers());
+        int pages = Math.max(1, (online.size() + 44) / 45);
+        int page = Math.max(0, Math.min(requestedPage, pages - 1));
+        playerPages.put(player.getUniqueId(), page);
+        Inventory inventory = Bukkit.createInventory(null, 54, PLAYERS);
+        int start = page * 45;
+        for (int i = start; i < Math.min(online.size(), start + 45); i++) {
+            Player target = online.get(i);
+            inventory.setItem(i - start, createItem(Material.PLAYER_HEAD, "§e" + target.getName(), "§7Click to manage this player."));
+        }
+        inventory.setItem(45, createItem(Material.ARROW, "§ePrevious Page"));
+        inventory.setItem(49, createItem(Material.ARROW, "§eBack", "§7Page " + (page + 1) + "/" + pages));
+        inventory.setItem(53, createItem(Material.ARROW, "§eNext Page"));
+        player.openInventory(inventory);
+    }
+
+    private void openActions(Player staff, Player target) {
+        selected.put(staff.getUniqueId(), target.getUniqueId());
+        Inventory inventory = Bukkit.createInventory(null, 27, ACTIONS);
+        inventory.setItem(10, createItem(Material.IRON_SWORD, "§cKick Player", "§7Click, then enter a reason in chat."));
+        inventory.setItem(12, createItem(Material.BARRIER, "§4Permanent Ban", "§7Click, then enter a reason in chat."));
+        inventory.setItem(14, createItem(
+                frozen.contains(target.getUniqueId()) ? Material.LIME_WOOL : Material.ICE,
+                frozen.contains(target.getUniqueId()) ? "§aUnfreeze Player" : "§bFreeze Player"
+        ));
+        inventory.setItem(16, createItem(Material.CLOCK, "§6Temporary Ban", "§7Enter a reason and duration in chat.", "§7Example duration: 30m, 2h, 7d."));
+        inventory.setItem(20, createItem(Material.CHEST, "§bView Inventory (InvSee)", "§7View and manage this player's inventory.", "§7Requires: staffjobs.invsee"));
+        inventory.setItem(22, createItem(Material.ARROW, "§eBack"));
+        staff.openInventory(inventory);
+    }
+
+    private void openConfirm(Player staff, String action) {
+        pendingAction.put(staff.getUniqueId(), action);
+        Inventory inventory = Bukkit.createInventory(null, 27, CONFIRM);
+        inventory.setItem(11, createItem(Material.LIME_WOOL, "§aCONFIRM"));
+        inventory.setItem(15, createItem(Material.RED_WOOL, "§cCANCEL"));
+        staff.openInventory(inventory);
+    }
+
+    // INVENTORY EVENTS
+
+    @EventHandler
+    public void onInventoryClick(InventoryClickEvent event) {
+        if (!(event.getWhoClicked() instanceof Player player)) return;
+        String title = event.getView().getTitle();
+
+        if (!title.equals(MENU) && !title.startsWith(REPORTS) && !title.equals(REPORT_DETAIL)
+                && !title.equals(PLAYERS) && !title.equals(ACTIONS) && !title.equals(CONFIRM)
+                && !title.equals("§8Staff Activity Logs") && !title.startsWith("§8Death History") && !title.equals("§8Death Rollback")) return;
+
+        event.setCancelled(true);
+        if (!player.hasPermission("staffjobs.use")) {
+            player.closeInventory();
+            return;
+        }
+
+        int slot = event.getRawSlot();
+        if (slot < 0 || slot >= event.getInventory().getSize()) return;
+
+        if (title.equals(MENU)) {
+            if (slot == 10) openPlayers(player);
+            else if (slot == 13) openReportLogs(player, 0);
+            else if (slot == 16) openActivityLogs(player, 0);
+            else if (slot == 22) openDeathHistory(player, 0);
+            else if (slot == 31) player.closeInventory();
+            return;
+        }
+
+        if (title.startsWith(REPORTS)) {
+            if (slot == 49) {
+                openStaffMenu(player);
+                return;
+            }
+            int page = reportPages.getOrDefault(player.getUniqueId(), 0);
+            if (slot == 45) {
+                openReportLogs(player, page - 1);
+                return;
+            }
+            if (slot == 53) {
+                openReportLogs(player, page + 1);
+                return;
+            }
+            ItemStack clicked = event.getCurrentItem();
+            if (clicked == null || clicked.getType() != Material.PAPER) return;
+            List<Map<?, ?>> reports = getReports();
+            int index = page * 45 + slot;
+            if (index >= 0 && index < reports.size()) {
+                openReportDetail(player, reportValue(reports.get(index), "id", ""));
+            }
+            return;
+        }
+
+        if (title.equals(REPORT_DETAIL)) {
+            if (slot == 11) openReportLogs(player, 0);
+            else if (slot == 15) {
+                String id = selectedReports.get(player.getUniqueId());
+                if (id != null) completeReport(player, id);
+            }
+            return;
+        }
+
+        if (title.startsWith("§8Staff Activity Logs")) {
+            int page = activityPages.getOrDefault(player.getUniqueId(), 0);
+            if (slot == 45) { openActivityLogs(player, page - 1); return; }
+            if (slot == 49) { openStaffMenu(player); return; }
+            if (slot == 53) { openActivityLogs(player, page + 1); return; }
+            return;
+        }
+
+        if (title.startsWith("§8Death History")) {
+            if (slot == 49) { openStaffMenu(player); return; }
+            int page = deathPages.getOrDefault(player.getUniqueId(), 0);
+            if (slot == 45) { openDeathHistory(player, page - 1); return; }
+            if (slot == 53) { openDeathHistory(player, page + 1); return; }
+            ItemStack clicked = event.getCurrentItem();
+            if (clicked == null || clicked.getType() != Material.SKELETON_SKULL) return;
+            List<String> ids = new ArrayList<>(deathsData.getConfigurationSection("deaths") == null
+                    ? Collections.emptySet() : deathsData.getConfigurationSection("deaths").getKeys(false));
+            Collections.reverse(ids);
+            int index = page * 45 + slot;
+            if (index >= 0 && index < ids.size()) openDeathDetail(player, ids.get(index));
+            return;
+        }
+
+        if (title.equals("§8Death Rollback")) {
+            if (slot == 50) openDeathHistory(player, deathPages.getOrDefault(player.getUniqueId(), 0));
+            else if (slot == 48) {
+                String id = deathSelection.get(player.getUniqueId());
+                if (id != null) restoreDeath(player, id);
+                player.closeInventory();
+            }
+            return;
+        }
+
+        if (title.equals(PLAYERS)) {
+            int page = playerPages.getOrDefault(player.getUniqueId(), 0);
+            if (slot == 45) { openPlayers(player, page - 1); return; }
+            if (slot == 49) { openStaffMenu(player); return; }
+            if (slot == 53) { openPlayers(player, page + 1); return; }
+            if (slot >= 45) return;
+            ItemStack clicked = event.getCurrentItem();
+            if (clicked == null || clicked.getType() != Material.PLAYER_HEAD) return;
+            List<Player> online = new ArrayList<>(Bukkit.getOnlinePlayers());
+            int index = page * 45 + slot;
+            if (index < online.size()) {
+                Player target = online.get(index);
+                if (!canManage(player, target)) {
+                    player.sendMessage(PREFIX + ChatColor.RED + "That player's rank is too high.");
+                    return;
+                }
+                openActions(player, target);
+            }
+            return;
+        }
+
+        if (title.equals(ACTIONS)) {
+            UUID targetUUID = selected.get(player.getUniqueId());
+            if (targetUUID == null) return;
+            Player target = Bukkit.getPlayer(targetUUID);
+            if (target == null) {
+                player.sendMessage(PREFIX + ChatColor.RED + "That player is offline.");
+                openPlayers(player);
+                return;
+            }
+            if (slot == 10) beginModerationChat(player, "kick");
+            else if (slot == 12) beginModerationChat(player, "ban");
+            else if (slot == 16) beginModerationChat(player, "tempban");
+            else if (slot == 14) {
+                if (!player.hasPermission("staffjobs.freeze")) {
+                    player.sendMessage(PREFIX + ChatColor.RED + "You do not have permission to freeze players.");
+                    return;
+                }
+                if (player.getUniqueId().equals(target.getUniqueId())) {
+                    player.sendMessage(PREFIX + ChatColor.RED + "You cannot freeze yourself.");
+                    return;
+                }
+                toggleFreeze(target);
+                openActions(player, target);
+            } else if (slot == 20) {
+                if (!player.hasPermission("staffjobs.invsee")) {
+                    player.sendMessage(PREFIX + ChatColor.RED + "You do not have permission to use InvSee.");
+                    return;
+                }
+                if (!canManage(player, target)) {
+                    player.sendMessage(PREFIX + ChatColor.RED + "You cannot inspect that player's inventory.");
+                    openPlayers(player);
+                    return;
+                }
+                if (player.getUniqueId().equals(target.getUniqueId())) {
+                    player.sendMessage(PREFIX + ChatColor.RED + "You cannot use InvSee on yourself.");
+                    return;
+                }
+                logAction(player, "INVSEE", target.getName());
+                player.openInventory(target.getInventory());
+                player.sendMessage(PREFIX + ChatColor.GREEN + "Opened " + target.getName() + "'s inventory.");
+            } else if (slot == 22) openPlayers(player);
+            return;
+        }
+
+        if (title.equals(CONFIRM)) {
+            if (slot == 15) {
+                pendingAction.remove(player.getUniqueId());
+                openStaffMenu(player);
+                return;
+            }
+            if (slot != 11) return;
+            UUID targetUUID = selected.get(player.getUniqueId());
+            String action = pendingAction.remove(player.getUniqueId());
+            if (targetUUID == null || action == null) return;
+            Player target = Bukkit.getPlayer(targetUUID);
+            if (target == null) {
+                player.sendMessage(PREFIX + ChatColor.RED + "That player is offline.");
+                openPlayers(player);
+                return;
+            }
+            if (!canManage(player, target)) {
+                player.sendMessage(PREFIX + ChatColor.RED + "You cannot manage that player.");
+                openStaffMenu(player);
+                return;
+            }
+            if (action.equals("kick")) {
+                logAction(player, "KICK", target.getName());
+                target.kickPlayer(ChatColor.RED + "You were kicked by a staff member.");
+                player.sendMessage(PREFIX + ChatColor.GREEN + "Player was kicked successfully.");
+            } else if (action.equals("ban")) {
+                logAction(player, "BAN", target.getName());
+                Bukkit.getBanList(BanList.Type.NAME).addBan(target.getName(), "Banned by a staff member", null, player.getName());
+                target.kickPlayer(ChatColor.RED + "You were banned by a staff member.");
+                player.sendMessage(PREFIX + ChatColor.GREEN + "Player was banned successfully.");
+            }
+            openStaffMenu(player);
+        }
+    }
+
+    // CHAT-BASED KICK / BAN SYSTEM
+
+    private void beginModerationChat(Player staff, String action) {
+        pendingAction.put(staff.getUniqueId(), action + "_reason");
+        pendingReason.remove(staff.getUniqueId());
+        staff.closeInventory();
+        String targetName = "the selected player";
+        UUID targetId = selected.get(staff.getUniqueId());
+        if (targetId != null) {
+            Player target = Bukkit.getPlayer(targetId);
+            if (target != null) targetName = target.getName();
+        }
+        staff.sendMessage(PREFIX + ChatColor.YELLOW + "Enter the reason for " + targetName + " in chat.");
+        staff.sendMessage(ChatColor.GRAY + "Type 'cancel' to cancel this action.");
+    }
+
+    @EventHandler
+    public void onModerationChat(AsyncPlayerChatEvent event) {
+        Player staff = event.getPlayer();
+        UUID staffId = staff.getUniqueId();
+        String state = pendingAction.get(staffId);
+        if (state == null || !(state.endsWith("_reason") || state.equals("tempban_duration"))) return;
+
+        event.setCancelled(true);
+        String input = event.getMessage().trim();
+        Bukkit.getScheduler().runTask(this, () -> {
+            if (!pendingAction.containsKey(staffId)) return;
+            if (input.equalsIgnoreCase("cancel")) {
+                pendingAction.remove(staffId);
+                pendingReason.remove(staffId);
+                staff.sendMessage(PREFIX + ChatColor.YELLOW + "Moderation action cancelled.");
+                return;
+            }
+            if (input.isEmpty()) {
+                staff.sendMessage(PREFIX + ChatColor.RED + "Input cannot be empty. Type 'cancel' to cancel.");
+                return;
+            }
+
+            if (state.equals("tempban_reason")) {
+                pendingReason.put(staffId, input);
+                pendingAction.put(staffId, "tempban_duration");
+                staff.sendMessage(PREFIX + ChatColor.YELLOW + "Now enter the temporary ban duration.");
+                staff.sendMessage(ChatColor.GRAY + "Examples: 10s, 5m, 2h, 7d, 2w, 1mo, 1y.");
+                return;
+            }
+
+            if (state.equals("tempban_duration")) {
+                Date expiry = parseBanExpiry(input);
+                if (expiry == null) {
+                    staff.sendMessage(PREFIX + ChatColor.RED + "Invalid duration. Use formats such as 10s, 5m, 2h, 7d, 2w, 1mo or 1y.");
+                    return;
+                }
+                String reason = pendingReason.getOrDefault(staffId, "No reason provided");
+                pendingAction.remove(staffId);
+                pendingReason.remove(staffId);
+                executeModeration(staff, "tempban", reason, expiry, input);
+                return;
+            }
+
+            String action = state.substring(0, state.length() - "_reason".length());
+            pendingAction.remove(staffId);
+            pendingReason.remove(staffId);
+            executeModeration(staff, action, input, null, null);
+        });
+    }
+
+    private Date parseBanExpiry(String input) {
+        String normalized = input.replaceAll("\\s+", "").toLowerCase(Locale.ROOT);
+        Matcher matcher = Pattern.compile("^(\\d+)(s|sec|secs|second|seconds|detik|m|min|mins|minute|minutes|menit|h|hr|hrs|hour|hours|jam|d|day|days|hari|w|week|weeks|minggu|mo|month|months|bulan|y|year|years|tahun)$")
+                .matcher(normalized);
+        if (!matcher.matches()) return null;
+        try {
+            long amount = Long.parseLong(matcher.group(1));
+            if (amount <= 0) return null;
+            String unit = matcher.group(2);
+            ZonedDateTime expiry = ZonedDateTime.now(WIB);
+            switch (unit) {
+                case "s", "sec", "secs", "second", "seconds", "detik" -> expiry = expiry.plusSeconds(amount);
+                case "m", "min", "mins", "minute", "minutes", "menit" -> expiry = expiry.plusMinutes(amount);
+                case "h", "hr", "hrs", "hour", "hours", "jam" -> expiry = expiry.plusHours(amount);
+                case "d", "day", "days", "hari" -> expiry = expiry.plusDays(amount);
+                case "w", "week", "weeks", "minggu" -> expiry = expiry.plusWeeks(amount);
+                case "mo", "month", "months", "bulan" -> expiry = expiry.plusMonths(amount);
+                case "y", "year", "years", "tahun" -> expiry = expiry.plusYears(amount);
+                default -> { return null; }
+            }
+            return Date.from(expiry.toInstant());
+        } catch (RuntimeException exception) {
+            return null;
+        }
+    }
+
+    private void executeModeration(Player staff, String action, String reason, Date expiry, String durationText) {
+        UUID targetId = selected.get(staff.getUniqueId());
+        Player target = targetId == null ? null : Bukkit.getPlayer(targetId);
+        if (target == null) {
+            staff.sendMessage(PREFIX + ChatColor.RED + "The selected player is no longer online.");
+            openPlayers(staff);
+            return;
+        }
+        if (!canPunish(staff, target)) {
+            staff.sendMessage(PREFIX + ChatColor.RED + "Self-punishment and equal/higher-rank punishment are disabled.");
+            openStaffMenu(staff);
+            return;
+        }
+        String permission = action.equals("kick") ? "staffjobs.kick" : "staffjobs.ban";
+        if (!staff.hasPermission(permission)) {
+            staff.sendMessage(PREFIX + ChatColor.RED + "You do not have permission for this action.");
+            openActions(staff, target);
+            return;
+        }
+
+        String cleanReason = ChatColor.stripColor(reason);
+        if (cleanReason == null || cleanReason.isBlank()) cleanReason = "No reason provided";
+        String kickMessage = ChatColor.RED + "You were " + (action.equals("kick") ? "kicked" : "banned")
+                + " by " + staff.getName() + ".\n" + ChatColor.GRAY + "Reason: " + cleanReason;
+
+        if (action.equals("kick")) {
+            logAction(staff, "KICK", target.getName() + " | Reason: " + cleanReason);
+            target.kickPlayer(kickMessage);
+            staff.sendMessage(PREFIX + ChatColor.GREEN + target.getName() + " was kicked. Reason: " + cleanReason);
+        } else if (action.equals("ban")) {
+            Bukkit.getBanList(BanList.Type.NAME).addBan(target.getName(), cleanReason, null, staff.getName());
+            logAction(staff, "BAN", target.getName() + " | Reason: " + cleanReason);
+            target.kickPlayer(kickMessage);
+            staff.sendMessage(PREFIX + ChatColor.GREEN + target.getName() + " was permanently banned. Reason: " + cleanReason);
+        } else if (action.equals("tempban")) {
+            Bukkit.getBanList(BanList.Type.NAME).addBan(target.getName(), cleanReason, expiry, staff.getName());
+            logAction(staff, "TEMPBAN", target.getName() + " | Duration: " + durationText + " | Reason: " + cleanReason);
+            target.kickPlayer(ChatColor.RED + "You were temporarily banned by " + staff.getName()
+                    + ".\n" + ChatColor.GRAY + "Duration: " + durationText + "\nReason: " + cleanReason);
+            staff.sendMessage(PREFIX + ChatColor.GREEN + target.getName() + " was temporarily banned for "
+                    + durationText + ". Reason: " + cleanReason);
+        }
+        openStaffMenu(staff);
+    }
+
+    // FREEZE SYSTEM
+
+    private void toggleFreeze(Player target) {
+        UUID uuid = target.getUniqueId();
+        if (frozen.contains(uuid)) {
+            frozen.remove(uuid);
+            target.sendMessage(PREFIX + ChatColor.GREEN + "Your freeze has been lifted.");
+        } else {
+            frozen.add(uuid);
+            target.sendMessage(PREFIX + ChatColor.RED + "You have been frozen by a staff member.");
+        }
+        saveFrozen();
+    }
+
+    @EventHandler
+    public void onMove(PlayerMoveEvent event) {
+        Player player = event.getPlayer();
+        if (!frozen.contains(player.getUniqueId()) || event.getTo() == null) return;
+        if (getConfig().getBoolean("settings.freeze.prevent-movement", true)) {
+            if (event.getFrom().getBlockX() != event.getTo().getBlockX()
+                    || event.getFrom().getBlockY() != event.getTo().getBlockY()
+                    || event.getFrom().getBlockZ() != event.getTo().getBlockZ()) {
+                event.setTo(event.getFrom());
+            }
+        }
+    }
+
+    @EventHandler
+    public void onAttack(EntityDamageByEntityEvent event) {
+        Player attacker = null;
+        if (event.getDamager() instanceof Player player) {
+            attacker = player;
+        } else if (event.getDamager() instanceof Projectile projectile
+                && projectile.getShooter() instanceof Player player) {
+            attacker = player;
+        }
+        if (attacker != null && frozen.contains(attacker.getUniqueId())
+                && getConfig().getBoolean("settings.freeze.prevent-attack", true)) {
+            event.setCancelled(true);
+        }
+    }
+
+    @EventHandler
+    public void onFrozenInteract(PlayerInteractEvent event) {
+        if (frozen.contains(event.getPlayer().getUniqueId())
+                && getConfig().getBoolean("settings.freeze.prevent-interaction", true)) event.setCancelled(true);
+    }
+
+    @EventHandler
+    public void onFrozenEntityInteract(PlayerInteractEntityEvent event) {
+        if (frozen.contains(event.getPlayer().getUniqueId())
+                && getConfig().getBoolean("settings.freeze.prevent-interaction", true)) event.setCancelled(true);
+    }
+
+    @EventHandler
+    public void onFrozenConsume(PlayerItemConsumeEvent event) {
+        if (frozen.contains(event.getPlayer().getUniqueId())
+                && getConfig().getBoolean("settings.freeze.prevent-interaction", true)) event.setCancelled(true);
+    }
+
+    @EventHandler
+    public void onFrozenBreak(BlockBreakEvent event) {
+        if (frozen.contains(event.getPlayer().getUniqueId())
+                && getConfig().getBoolean("settings.freeze.prevent-interaction", true)) event.setCancelled(true);
+    }
+
+    @EventHandler
+    public void onFrozenPlace(BlockPlaceEvent event) {
+        if (frozen.contains(event.getPlayer().getUniqueId())
+                && getConfig().getBoolean("settings.freeze.prevent-interaction", true)) event.setCancelled(true);
+    }
+
+    @EventHandler
+    public void onFrozenDrop(PlayerDropItemEvent event) {
+        if (frozen.contains(event.getPlayer().getUniqueId())
+                && getConfig().getBoolean("settings.freeze.prevent-interaction", true)) event.setCancelled(true);
+    }
+
+    @EventHandler
+    public void onFrozenPickup(PlayerPickupItemEvent event) {
+        if (frozen.contains(event.getPlayer().getUniqueId())
+                && getConfig().getBoolean("settings.freeze.prevent-interaction", true)) event.setCancelled(true);
+    }
+
+    // DEATH ROLLBACK: snapshot is captured before Bukkit drops/clears inventory.
+    @EventHandler
+    public void onDeath(PlayerDeathEvent event) {
+        Player player = event.getEntity();
+        String id = UUID.randomUUID().toString();
+        String base = "deaths." + id;
+        PlayerInventory inv = player.getInventory();
+        deathsData.set(base + ".uuid", player.getUniqueId().toString());
+        deathsData.set(base + ".player", player.getName());
+        deathsData.set(base + ".time", ZonedDateTime.now(WIB).format(dateFormatter) + " WIB");
+        deathsData.set(base + ".world", player.getWorld().getName());
+        deathsData.set(base + ".x", player.getLocation().getBlockX());
+        deathsData.set(base + ".y", player.getLocation().getBlockY());
+        deathsData.set(base + ".z", player.getLocation().getBlockZ());
+        deathsData.set(base + ".cause", event.getDeathMessage() == null ? "Unknown" : ChatColor.stripColor(event.getDeathMessage()));
+        deathsData.set(base + ".inventory", new ArrayList<>(Arrays.asList(inv.getStorageContents())));
+        deathsData.set(base + ".armor", new ArrayList<>(Arrays.asList(inv.getArmorContents())));
+        deathsData.set(base + ".offhand", inv.getItemInOffHand());
+        deathsData.set(base + ".level", player.getLevel());
+        deathsData.set(base + ".exp", player.getExp());
+        deathsData.set(base + ".total-exp", player.getTotalExperience());
+        trimDeathHistory();
+        saveDeaths();
+
+        String notice = PREFIX + ChatColor.RED + "PLAYER DEATH: " + ChatColor.YELLOW + player.getName()
+                + ChatColor.GRAY + " | World: " + player.getWorld().getName()
+                + " | Location: " + player.getLocation().getBlockX() + ", " + player.getLocation().getBlockY() + ", " + player.getLocation().getBlockZ()
+                + " | Cause: " + (event.getDeathMessage() == null ? "Unknown" : ChatColor.stripColor(event.getDeathMessage()))
+                + " | Time: " + ZonedDateTime.now(WIB).format(DateTimeFormatter.ofPattern("HH:mm:ss")) + " WIB";
+        for (Player staff : Bukkit.getOnlinePlayers()) {
+            if (staff.hasPermission("staffjobs.deathnotify")) staff.sendMessage(notice);
+        }
+        logAction(null, "PLAYER_DEATH", player.getName() + " [" + id + "]");
+    }
+
+    private void openDeathHistory(Player staff, int page) {
+        List<String> ids = new ArrayList<>(deathsData.getConfigurationSection("deaths") == null
+                ? Collections.emptySet() : deathsData.getConfigurationSection("deaths").getKeys(false));
+        Collections.reverse(ids);
+        int pages = Math.max(1, (ids.size() + 44) / 45);
+        page = Math.max(0, Math.min(page, pages - 1));
+        deathPages.put(staff.getUniqueId(), page);
+        Inventory inv = Bukkit.createInventory(null, 54, "§8Death History §7(" + (page + 1) + "/" + pages + ")");
+        for (int i = page * 45; i < Math.min(ids.size(), (page + 1) * 45); i++) {
+            String id = ids.get(i);
+            String base = "deaths." + id;
+            inv.setItem(i - page * 45, createItem(Material.SKELETON_SKULL,
+                    "§c" + deathsData.getString(base + ".player", "Unknown"),
+                    "§7Time: " + deathsData.getString(base + ".time", ""),
+                    "§7World: " + deathsData.getString(base + ".world", ""),
+                    "§7Location: " + deathsData.getInt(base + ".x") + ", " + deathsData.getInt(base + ".y") + ", " + deathsData.getInt(base + ".z"),
+                    "§eClick to select and restore."));
+        }
+        inv.setItem(45, createItem(Material.ARROW, "§ePrevious"));
+        inv.setItem(49, createItem(Material.ARROW, "§eBack"));
+        inv.setItem(53, createItem(Material.ARROW, "§eNext"));
+        staff.openInventory(inv);
+    }
+
+    private void openDeathDetail(Player staff, String id) {
+        String base = "deaths." + id;
+        deathSelection.put(staff.getUniqueId(), id);
+        Inventory inv = Bukkit.createInventory(null, 54, "§8Death Rollback");
+
+        // Display the saved inventory contents so staff can review them before restoring.
+        ItemStack[] storage = readStoredItems(base + ".inventory", 36);
+        for (int i = 0; i < Math.min(36, storage.length); i++) {
+            if (storage[i] != null && storage[i].getType() != Material.AIR) {
+                inv.setItem(i, storage[i].clone());
+            }
+        }
+        ItemStack[] armor = readStoredItems(base + ".armor", 4);
+        for (int i = 0; i < Math.min(4, armor.length); i++) {
+            if (armor[i] != null && armor[i].getType() != Material.AIR) {
+                inv.setItem(36 + i, armor[i].clone());
+            }
+        }
+        Object offhand = deathsData.get(base + ".offhand");
+        if (offhand instanceof ItemStack item && item.getType() != Material.AIR) {
+            inv.setItem(40, item.clone());
+        }
+
+        inv.setItem(45, createItem(Material.PAPER, "§c" + deathsData.getString(base + ".player", "Unknown"),
+                "§7Time: " + deathsData.getString(base + ".time", ""),
+                "§7Location: " + deathsData.getString(base + ".world", "") + " "
+                        + deathsData.getInt(base + ".x") + ", " + deathsData.getInt(base + ".y") + ", " + deathsData.getInt(base + ".z"),
+                "§7Level: " + deathsData.getInt(base + ".level")));
+        inv.setItem(48, createItem(Material.LIME_WOOL, "§aRESTORE INVENTORY", "§7Restore the saved items to the player."));
+        inv.setItem(50, createItem(Material.ARROW, "§eBack"));
+        staff.openInventory(inv);
+    }
+
+    private ItemStack[] readStoredItems(String path, int expectedSize) {
+        ItemStack[] result = new ItemStack[expectedSize];
+        Object raw = deathsData.get(path);
+        if (raw instanceof ItemStack[] array) {
+            for (int i = 0; i < Math.min(expectedSize, array.length); i++) {
+                if (array[i] != null) result[i] = array[i].clone();
+            }
+            return result;
+        }
+        if (!(raw instanceof List<?> stored)) return result;
+
+        for (int i = 0; i < Math.min(expectedSize, stored.size()); i++) {
+            Object value = stored.get(i);
+            if (value instanceof ItemStack item) {
+                result[i] = item.clone();
+            } else if (value instanceof Map<?, ?> serialized) {
+                try {
+                    Map<String, Object> itemData = new HashMap<>();
+                    for (Map.Entry<?, ?> entry : serialized.entrySet()) {
+                        if (entry.getKey() instanceof String key) {
+                            itemData.put(key, entry.getValue());
+                        }
+                    }
+                    ItemStack decodedItem = null;
+                    if (itemData.containsKey("==")) {
+                        try {
+                            Object decoded = ConfigurationSerialization.deserializeObject(itemData);
+                            if (decoded instanceof ItemStack item) {
+                                decodedItem = item.clone();
+                            }
+                        } catch (Exception ignored) {
+                            // Try Bukkit's direct ItemStack deserializer below for older or unusual YAML data.
+                        }
+                    }
+                    if (decodedItem == null) {
+                        try {
+                            decodedItem = ItemStack.deserialize(itemData);
+                        } catch (Exception exception) {
+                            getLogger().warning("Could not read saved item at " + path + "[" + i + "]: "
+                                    + exception.getMessage());
+                        }
+                    }
+                    result[i] = decodedItem;
+                } catch (Exception exception) {
+                    getLogger().warning("Could not read saved item at " + path + "[" + i + "]: "
+                            + exception.getMessage());
+                }
+            }
+        }
+        return result;
+    }
+
+    private void restoreDeath(Player staff, String id) {
+        String base = "deaths." + id;
+        if (!deathsData.contains(base + ".uuid")) {
+            staff.sendMessage(PREFIX + ChatColor.RED + "Death record does not contain a player UUID.");
+            return;
+        }
+        Player target;
+        try { target = Bukkit.getPlayer(UUID.fromString(deathsData.getString(base + ".uuid"))); }
+        catch (Exception ex) { target = null; }
+        if (target == null) {
+            staff.sendMessage(PREFIX + ChatColor.RED + "The player must be online to restore their inventory.");
+            return;
+        }
+
+        ItemStack[] storage = readStoredItems(base + ".inventory", 36);
+        ItemStack[] armor = readStoredItems(base + ".armor", 4);
+        if (getConfig().getBoolean("settings.rollback.replace-inventory", true)) {
+            target.getInventory().setStorageContents(storage);
+        } else {
+            for (ItemStack item : storage) {
+                if (item == null || item.getType() == Material.AIR) continue;
+                Map<Integer, ItemStack> leftovers = target.getInventory().addItem(item.clone());
+                for (ItemStack leftover : leftovers.values()) {
+                    target.getWorld().dropItemNaturally(target.getLocation(), leftover);
+                }
+            }
+        }
+        if (getConfig().getBoolean("settings.rollback.restore-armor", true)) {
+            target.getInventory().setArmorContents(armor);
+        }
+        if (getConfig().getBoolean("settings.rollback.restore-offhand", true)) {
+            Object offhand = deathsData.get(base + ".offhand");
+            target.getInventory().setItemInOffHand(offhand instanceof ItemStack item ? item.clone() : null);
+        }
+        target.setLevel(deathsData.getInt(base + ".level"));
+        target.setExp((float) deathsData.getDouble(base + ".exp"));
+        target.setTotalExperience(deathsData.getInt(base + ".total-exp"));
+        target.updateInventory();
+
+        logAction(staff, "DEATH_ROLLBACK", target.getName() + " record " + id);
+        staff.sendMessage(PREFIX + ChatColor.GREEN + "Death inventory successfully restored for " + target.getName() + ".");
+        target.sendMessage(PREFIX + ChatColor.GREEN + "Your inventory has been restored by a staff member.");
+    }
+
+    private void openActivityLogs(Player staff, int requestedPage) {
+        List<String> entries = logsData.getStringList("entries");
+        int pages = Math.max(1, (entries.size() + 44) / 45);
+        int page = Math.max(0, Math.min(requestedPage, pages - 1));
+        activityPages.put(staff.getUniqueId(), page);
+        Inventory inv = Bukkit.createInventory(null, 54, "§8Staff Activity Logs");
+        int end = entries.size() - (page * 45);
+        int start = Math.max(0, end - 45);
+        int slot = 0;
+        for (int i = end - 1; i >= start && slot < 45; i--) {
+            inv.setItem(slot++, createItem(Material.WRITABLE_BOOK, "§eLog #" + (i + 1), "§7" + entries.get(i)));
+        }
+        inv.setItem(45, createItem(Material.ARROW, "§ePrevious Page"));
+        inv.setItem(49, createItem(Material.ARROW, "§eBack", "§7Page " + (page + 1) + "/" + pages));
+        inv.setItem(53, createItem(Material.ARROW, "§eNext Page"));
+        staff.openInventory(inv);
+    }
+
+    private void logAction(Player staff, String action, String target) {
+        if (logsData == null) return;
+        List<String> entries = logsData.getStringList("entries");
+        String actor = staff == null ? "SYSTEM" : staff.getName();
+        entries.add(ZonedDateTime.now(WIB).format(dateFormatter) + " WIB | " + actor + " | " + action + " | " + target);
+        int maxEntries = getConfig().getInt("settings.activity-logs.max-entries", 500);
+        while (maxEntries > 0 && entries.size() > maxEntries) entries.remove(0);
+        logsData.set("entries", entries);
+        saveLogs();
+    }
+
+    private void loadLogs() {
+        logsFile = new File(getDataFolder(), "staff-logs.yml");
+        logsData = YamlConfiguration.loadConfiguration(logsFile);
+    }
+    private void saveLogs() { if (logsData != null) saveFile(logsData, logsFile); }
+    private void trimDeathHistory() {
+        int maxEntries = getConfig().getInt("settings.max-death-logs", 100);
+        if (maxEntries <= 0) return;
+        if (deathsData == null || deathsData.getConfigurationSection("deaths") == null) return;
+        List<String> ids = new ArrayList<>(deathsData.getConfigurationSection("deaths").getKeys(false));
+        int excess = ids.size() - maxEntries;
+        for (int i = 0; i < excess; i++) {
+            deathsData.set("deaths." + ids.get(i), null);
+        }
+    }
+
+    private void loadDeaths() {
+        deathsFile = new File(getDataFolder(), "deaths.yml");
+        deathsData = YamlConfiguration.loadConfiguration(deathsFile);
+        trimDeathHistory();
+        saveDeaths();
+    }
+    private void saveDeaths() { if (deathsData != null) saveFile(deathsData, deathsFile); }
+
+    // STAFF HIERARCHY
+
+    private int getRank(Player player) {
+        if (player.isOp()) return 100;
+        for (int i = 99; i >= 1; i--) {
+            if (player.hasPermission("staffjobs.rank." + i)) return i;
+        }
+        return 0;
+    }
+
+    private boolean canManage(Player staff, Player target) {
+        if (staff.getUniqueId().equals(target.getUniqueId())) return true;
+        if (staff.hasPermission("staffjobs.protect.bypass")) return true;
+        return getRank(staff) > getRank(target);
+    }
+
+    // ITEM HELPERS
+
+    private ItemStack createItem(Material material, String name, String... lore) {
+        ItemStack item = new ItemStack(material);
+        ItemMeta meta = item.getItemMeta();
+        if (meta != null) {
+            meta.setDisplayName(name);
+            if (lore.length > 0) meta.setLore(Arrays.asList(lore));
+            item.setItemMeta(meta);
+        }
+        return item;
+    }
+}

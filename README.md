@@ -74,6 +74,10 @@ STAFFJOBS UNIVERSAL follows Semantic Versioning:
 - Minor releases (for example, 1.1.0) introduce backward-compatible features.
 - Major releases (for example, 2.0.0) may contain breaking changes.
 
-## Support and Feedback
+## Support, Issue Tracker, and Source Code
 
-Please report bugs with the server version, Java version, plugin version, relevant console errors, and clear reproduction steps.
+- **Issue Tracker:** https://github.com/alfonsowior7-dot/StaffJobsUniversal/issues
+- **Report a Bug:** https://github.com/alfonsowior7-dot/StaffJobsUniversal/issues/new
+- **Source Code:** https://github.com/alfonsowior7-dot/StaffJobsUniversal
+
+Please report bugs with the server version, Java version, plugin version, relevant console errors, and clear reproduction steps. Do not include server passwords, tokens, or other private information in public issues.

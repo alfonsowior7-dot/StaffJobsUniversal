@@ -129,10 +129,7 @@ public class StaffJobsPlugin extends JavaPlugin implements Listener {
 
     @Override
     public void onDisable() {
-        saveFrozen();
-        saveReports();
-        savePunishments();
-        saveNotifications();
+        saveAllData();
         selected.clear();
         pendingAction.clear();
         pendingReason.clear();

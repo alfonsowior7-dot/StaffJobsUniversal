@@ -15,6 +15,7 @@ import org.bukkit.event.Listener;
 import org.bukkit.event.inventory.InventoryClickEvent;
 import org.bukkit.event.inventory.InventoryDragEvent;
 import org.bukkit.event.player.PlayerJoinEvent;
+import org.bukkit.event.player.PlayerQuitEvent;
 import org.bukkit.event.player.AsyncPlayerChatEvent;
 import org.bukkit.event.player.PlayerMoveEvent;
 import org.bukkit.event.player.PlayerInteractEvent;
@@ -73,7 +74,10 @@ public class StaffJobsPlugin extends JavaPlugin implements Listener {
     private final Map<UUID, Integer> playerPages = new HashMap<>();
     private final Map<UUID, String> selectedReports = new HashMap<>();
 
-    private File frozenFile, reportsFile, notificationsFile, logsFile, deathsFile, punishmentsFile;
+    private File frozenFile, reportsFile, notificationsFile, logsFile, deathsFile, punishmentsFile, staffStatusFile;
+    private YamlConfiguration staffStatusData;
+    private final Map<UUID, Long> lastActivity = new java.util.concurrent.ConcurrentHashMap<>();
+    private final Set<UUID> afkPlayers = java.util.concurrent.ConcurrentHashMap.newKeySet();
     private YamlConfiguration frozenData, reportsData, notificationsData, logsData, deathsData, punishmentsData;
     private final Map<UUID, Long> mutedUntil = new java.util.concurrent.ConcurrentHashMap<>();
     private final DateTimeFormatter dateFormatter = DateTimeFormatter.ofPattern("dd-MM-yyyy HH:mm:ss");
@@ -111,11 +115,22 @@ public class StaffJobsPlugin extends JavaPlugin implements Listener {
         loadLogs();
         loadDeaths();
         loadPunishments();
+        loadStaffStatus();
         getServer().getPluginManager().registerEvents(this, this);
         if (getConfig().getBoolean("settings.update-check.enabled", true)) checkForUpdates();
         Objects.requireNonNull(getCommand("staffmenu")).setExecutor(this);
         Objects.requireNonNull(getCommand("report")).setExecutor(this);
         Bukkit.getScheduler().runTaskTimer(this, this::removeExpiredReports, 20L * 60L, 20L * 60L);
+        long afkMinutes = Math.max(1L, getConfig().getLong("settings.staff.afk-minutes", 5L));
+        Bukkit.getScheduler().runTaskTimer(this, () -> {
+            long cutoff = System.currentTimeMillis() - afkMinutes * 60_000L;
+            for (Player online : Bukkit.getOnlinePlayers()) {
+                if (!online.hasPermission("staffjobs.use")) continue;
+                long last = lastActivity.getOrDefault(online.getUniqueId(), System.currentTimeMillis());
+                if (last <= cutoff) afkPlayers.add(online.getUniqueId());
+                else afkPlayers.remove(online.getUniqueId());
+            }
+        }, 20L * 30L, 20L * 30L);
         if (getConfig().getBoolean("settings.backups.enabled", true)) {
             long interval = Math.max(1L, getConfig().getLong("settings.backups.interval-hours", 24L));
             long ticks = interval * 60L * 60L * 20L;
@@ -134,6 +149,7 @@ public class StaffJobsPlugin extends JavaPlugin implements Listener {
         saveNotifications();
         saveLogs();
         saveDeaths();
+        saveStaffStatus();
     }
 
     @Override
@@ -205,6 +221,26 @@ public class StaffJobsPlugin extends JavaPlugin implements Listener {
 
     @Override
     public boolean onCommand(CommandSender sender, Command command, String label, String[] args) {
+        if (command.getName().equalsIgnoreCase("staffbackup")) {
+            if (!sender.hasPermission("staffjobs.backup")) {
+                sender.sendMessage(PREFIX + ChatColor.RED + "You do not have permission.");
+                return true;
+            }
+            if (args.length == 0 || args[0].equalsIgnoreCase("create")) {
+                createDataBackup();
+                sender.sendMessage(PREFIX + ChatColor.GREEN + "Manual data backup created. Check the plugin backups folder.");
+            } else if (args[0].equalsIgnoreCase("restore") && args.length == 2) {
+                restoreDataBackup(sender, args[1]);
+            } else if (args[0].equalsIgnoreCase("list")) {
+                File folder = new File(getDataFolder(), "backups");
+                File[] backups = folder.listFiles(File::isDirectory);
+                sender.sendMessage("§eAvailable STAFFJOBS backups:");
+                if (backups == null || backups.length == 0) sender.sendMessage("§7No backups found.");
+                else { Arrays.sort(backups, Comparator.comparingLong(File::lastModified).reversed()); for (File item : backups) sender.sendMessage("§7- §f" + item.getName()); }
+            } else sender.sendMessage("§eUsage: /staffbackup [create|list|restore <backup-name>]");
+            return true;
+        }
+
         if (command.getName().equalsIgnoreCase("staffjobs")) {
             String version = getDescription().getVersion();
             String author = getDescription().getAuthors().isEmpty()
@@ -686,6 +722,11 @@ public class StaffJobsPlugin extends JavaPlugin implements Listener {
         if (updateCheckCompleted) {
             sendVersionNotice(player);
         }
+        lastActivity.put(player.getUniqueId(), System.currentTimeMillis());
+        afkPlayers.remove(player.getUniqueId());
+        String staffPath = "staff." + player.getUniqueId();
+        staffStatusData.set(staffPath + ".name", player.getName());
+        saveStaffStatus();
         if (frozen.contains(player.getUniqueId())) {
             player.sendMessage(PREFIX + ChatColor.RED + "You are still FROZEN by a staff member.");
         }
@@ -696,6 +737,31 @@ public class StaffJobsPlugin extends JavaPlugin implements Listener {
             for (String message : pending) player.sendMessage(message);
             notificationsData.set(path, null);
             saveNotifications();
+        }
+    }
+
+    @EventHandler
+    public void onQuit(PlayerQuitEvent event) {
+        Player player = event.getPlayer();
+        if (player.hasPermission("staffjobs.use")) {
+            String path = "staff." + player.getUniqueId();
+            staffStatusData.set(path + ".name", player.getName());
+            staffStatusData.set(path + ".last-online", System.currentTimeMillis());
+            saveStaffStatus();
+        }
+        lastActivity.remove(player.getUniqueId());
+        afkPlayers.remove(player.getUniqueId());
+    }
+
+    @EventHandler
+    public void onStaffActivity(PlayerMoveEvent event) {
+        Player player = event.getPlayer();
+        if (!player.hasPermission("staffjobs.use")) return;
+        if (event.getTo() != null && (event.getFrom().getBlockX() != event.getTo().getBlockX()
+                || event.getFrom().getBlockY() != event.getTo().getBlockY()
+                || event.getFrom().getBlockZ() != event.getTo().getBlockZ())) {
+            lastActivity.put(player.getUniqueId(), System.currentTimeMillis());
+            afkPlayers.remove(player.getUniqueId());
         }
     }
 
@@ -1412,13 +1478,46 @@ public class StaffJobsPlugin extends JavaPlugin implements Listener {
         target.sendMessage(PREFIX + ChatColor.GREEN + "Your inventory has been restored by a staff member.");
     }
 
+
+    private void loadStaffStatus() {
+        staffStatusFile = new File(getDataFolder(), "staff-status.yml");
+        staffStatusData = YamlConfiguration.loadConfiguration(staffStatusFile);
+    }
+
+    private void saveStaffStatus() {
+        if (staffStatusData != null) saveFile(staffStatusData, staffStatusFile);
+    }
+
+    private void restoreDataBackup(CommandSender sender, String backupName) {
+        File root = new File(getDataFolder(), "backups").getAbsoluteFile();
+        File backup = new File(root, backupName).getAbsoluteFile();
+        try {
+            if (!backup.getParentFile().equals(root) || !backup.isDirectory()
+                    || !backup.getName().matches("backup-[0-9]{8}-[0-9]{6}")) {
+                sender.sendMessage(PREFIX + ChatColor.RED + "Invalid backup name.");
+                return;
+            }
+            createDataBackup();
+            String[] names = {"frozen.yml", "reports.yml", "notifications.yml", "staff-logs.yml", "deaths.yml", "punishments.yml", "staff-status.yml"};
+            for (String name : names) {
+                File source = new File(backup, name);
+                if (source.isFile()) java.nio.file.Files.copy(source.toPath(), new File(getDataFolder(), name).toPath(), java.nio.file.StandardCopyOption.REPLACE_EXISTING);
+            }
+            sender.sendMessage(PREFIX + ChatColor.GREEN + "Backup restored. Restart the server to reload all plugin data safely.");
+            getLogger().warning("A data backup was restored by " + sender.getName() + ". Restart required to reload in-memory data.");
+        } catch (IOException exception) {
+            sender.sendMessage(PREFIX + ChatColor.RED + "Backup restore failed: " + exception.getMessage());
+            getLogger().severe("Backup restore failed: " + exception.getMessage());
+        }
+    }
+
     private void createDataBackup() {
         File backupDir = new File(getDataFolder(), "backups");
         if (!backupDir.exists() && !backupDir.mkdirs()) { getLogger().warning("Could not create backup directory."); return; }
         String stamp = java.time.LocalDateTime.now(getConfiguredZone()).format(DateTimeFormatter.ofPattern("yyyyMMdd-HHmmss"));
         File destination = new File(backupDir, "backup-" + stamp);
         if (!destination.mkdirs()) return;
-        File[] files = { frozenFile, reportsFile, notificationsFile, logsFile, deathsFile, punishmentsFile };
+        File[] files = { frozenFile, reportsFile, notificationsFile, logsFile, deathsFile, punishmentsFile, staffStatusFile };
         try {
             for (File source : files) {
                 if (source != null && source.isFile()) java.nio.file.Files.copy(source.toPath(), new File(destination, source.getName()).toPath(), java.nio.file.StandardCopyOption.REPLACE_EXISTING);
@@ -1443,7 +1542,10 @@ public class StaffJobsPlugin extends JavaPlugin implements Listener {
         staff.sort(Comparator.comparing(Player::getName, String.CASE_INSENSITIVE_ORDER));
         for (int i = 0; i < Math.min(45, staff.size()); i++) {
             Player member = staff.get(i);
-            inv.setItem(i, createItem(Material.PLAYER_HEAD, "§a" + member.getName(), "§7Status: §aONLINE", "§7Rank: §f" + getRank(member)));
+            long last = staffStatusData.getLong("staff." + member.getUniqueId() + ".last-online", 0L);
+            String lastText = last <= 0L ? "Never" : new java.text.SimpleDateFormat("dd-MM-yyyy HH:mm").format(new Date(last));
+            String status = afkPlayers.contains(member.getUniqueId()) ? "§eAFK" : "§aONLINE";
+            inv.setItem(i, createItem(Material.PLAYER_HEAD, "§a" + member.getName(), "§7Status: " + status, "§7Rank: §f" + getRank(member), "§7Last online: §f" + lastText));
         }
         inv.setItem(48, createItem(Material.CLOCK, "§eRefresh", "§7Update the online staff list."));
         inv.setItem(49, createItem(Material.ARROW, "§eBack"));
@@ -1481,10 +1583,16 @@ public class StaffJobsPlugin extends JavaPlugin implements Listener {
     }
 
     private void logAction(Player staff, String action, String target) {
+        logAction(staff, action, target, "N/A", "N/A");
+    }
+
+    private void logAction(Player staff, String action, String target, String before, String after) {
         if (logsData == null) return;
         List<String> entries = logsData.getStringList("entries");
         String actor = staff == null ? "SYSTEM" : staff.getName();
-        entries.add(ZonedDateTime.now(getConfiguredZone()).format(dateFormatter) + " WIB | " + actor + " | " + action + " | " + target);
+        String stamp = ZonedDateTime.now(getConfiguredZone()).format(dateFormatter) + " " + getZoneLabel();
+        entries.add(stamp + " | Actor: " + actor + " | Target: " + target + " | Action: " + action
+                + " | Before: " + before + " | After: " + after);
         int maxEntries = getConfig().getInt("settings.activity-logs.max-entries", 500);
         while (maxEntries > 0 && entries.size() > maxEntries) entries.remove(0);
         logsData.set("entries", entries);

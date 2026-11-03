@@ -25,6 +25,7 @@ import org.bukkit.event.block.BlockPlaceEvent;
 import org.bukkit.event.player.PlayerDropItemEvent;
 import org.bukkit.event.player.PlayerSwapHandItemsEvent;
 import org.bukkit.event.player.PlayerItemHeldEvent;
+import org.bukkit.event.player.PlayerCommandPreprocessEvent;
 import org.bukkit.event.player.PlayerPickupItemEvent;
 import org.bukkit.event.entity.PlayerDeathEvent;
 import org.bukkit.event.player.PlayerRespawnEvent;
@@ -227,8 +228,8 @@ public class StaffJobsPlugin extends JavaPlugin implements Listener {
                 return true;
             }
             if (args.length == 0 || args[0].equalsIgnoreCase("create")) {
-                createDataBackup();
-                sender.sendMessage(PREFIX + ChatColor.GREEN + "Manual data backup created. Check the plugin backups folder.");
+                if (createDataBackup()) sender.sendMessage(PREFIX + ChatColor.GREEN + "Manual data backup created successfully.");
+                else sender.sendMessage(PREFIX + ChatColor.RED + "Backup failed. Check the server console for details.");
             } else if (args[0].equalsIgnoreCase("restore") && args.length == 2) {
                 restoreDataBackup(sender, args[1]);
             } else if (args[0].equalsIgnoreCase("list")) {
@@ -760,9 +761,24 @@ public class StaffJobsPlugin extends JavaPlugin implements Listener {
         if (event.getTo() != null && (event.getFrom().getBlockX() != event.getTo().getBlockX()
                 || event.getFrom().getBlockY() != event.getTo().getBlockY()
                 || event.getFrom().getBlockZ() != event.getTo().getBlockZ())) {
-            lastActivity.put(player.getUniqueId(), System.currentTimeMillis());
-            afkPlayers.remove(player.getUniqueId());
+            markStaffActivity(player);
         }
+    }
+
+    @EventHandler public void onStaffChatActivity(AsyncPlayerChatEvent event) { markStaffActivity(event.getPlayer()); }
+    @EventHandler public void onStaffInteractActivity(PlayerInteractEvent event) { markStaffActivity(event.getPlayer()); }
+    @EventHandler public void onStaffEntityInteractActivity(PlayerInteractEntityEvent event) { markStaffActivity(event.getPlayer()); }
+    @EventHandler public void onStaffCommandActivity(PlayerCommandPreprocessEvent event) { markStaffActivity(event.getPlayer()); }
+    @EventHandler public void onStaffBlockBreakActivity(BlockBreakEvent event) { markStaffActivity(event.getPlayer()); }
+    @EventHandler public void onStaffBlockPlaceActivity(BlockPlaceEvent event) { markStaffActivity(event.getPlayer()); }
+    @EventHandler public void onStaffInventoryActivity(InventoryClickEvent event) {
+        if (event.getWhoClicked() instanceof Player player) markStaffActivity(player);
+    }
+
+    private void markStaffActivity(Player player) {
+        if (!player.hasPermission("staffjobs.use")) return;
+        lastActivity.put(player.getUniqueId(), System.currentTimeMillis());
+        afkPlayers.remove(player.getUniqueId());
     }
 
     // STAFF MENU
@@ -1493,11 +1509,14 @@ public class StaffJobsPlugin extends JavaPlugin implements Listener {
         File backup = new File(root, backupName).getAbsoluteFile();
         try {
             if (!backup.getParentFile().equals(root) || !backup.isDirectory()
-                    || !backup.getName().matches("backup-[0-9]{8}-[0-9]{6}")) {
+                    || !backup.getName().matches("backup-[0-9]{8}-[0-9]{9}")) {
                 sender.sendMessage(PREFIX + ChatColor.RED + "Invalid backup name.");
                 return;
             }
-            createDataBackup();
+            if (!createDataBackup()) {
+                sender.sendMessage(PREFIX + ChatColor.RED + "Could not create the required safety backup. Restore was cancelled.");
+                return;
+            }
             String[] names = {"frozen.yml", "reports.yml", "notifications.yml", "staff-logs.yml", "deaths.yml", "punishments.yml", "staff-status.yml"};
             for (String name : names) {
                 File source = new File(backup, name);
@@ -1511,12 +1530,19 @@ public class StaffJobsPlugin extends JavaPlugin implements Listener {
         }
     }
 
-    private void createDataBackup() {
+    private boolean createDataBackup() {
+        saveAllData();
         File backupDir = new File(getDataFolder(), "backups");
-        if (!backupDir.exists() && !backupDir.mkdirs()) { getLogger().warning("Could not create backup directory."); return; }
-        String stamp = java.time.LocalDateTime.now(getConfiguredZone()).format(DateTimeFormatter.ofPattern("yyyyMMdd-HHmmss"));
+        if (!backupDir.exists() && !backupDir.mkdirs()) {
+            getLogger().warning("Could not create backup directory: " + backupDir.getAbsolutePath());
+            return false;
+        }
+        String stamp = java.time.LocalDateTime.now(getConfiguredZone()).format(DateTimeFormatter.ofPattern("yyyyMMdd-HHmmssSSS"));
         File destination = new File(backupDir, "backup-" + stamp);
-        if (!destination.mkdirs()) return;
+        if (!destination.mkdirs()) {
+            getLogger().warning("Could not create unique backup directory: " + destination.getName());
+            return false;
+        }
         File[] files = { frozenFile, reportsFile, notificationsFile, logsFile, deathsFile, punishmentsFile, staffStatusFile };
         try {
             for (File source : files) {
@@ -1529,8 +1555,15 @@ public class StaffJobsPlugin extends JavaPlugin implements Listener {
                 for (int i = keep; i < snapshots.length; i++) deleteBackupTree(snapshots[i]);
             }
             getLogger().info("Created data backup: " + destination.getName());
-        } catch (java.io.IOException exception) { getLogger().severe("Data backup failed: " + exception.getMessage()); }
+            return true;
+        } catch (IOException exception) {
+            getLogger().severe("Data backup failed: " + exception.getMessage());
+            try { deleteBackupTree(destination); }
+            catch (IOException cleanupException) { getLogger().severe("Could not remove incomplete backup: " + cleanupException.getMessage()); }
+            return false;
+        }
     }
+
     private void deleteBackupTree(File file) throws java.io.IOException {
         if (file.isDirectory()) { File[] children = file.listFiles(); if (children != null) for (File child : children) deleteBackupTree(child); }
         java.nio.file.Files.deleteIfExists(file.toPath());
@@ -1542,8 +1575,7 @@ public class StaffJobsPlugin extends JavaPlugin implements Listener {
         staff.sort(Comparator.comparing(Player::getName, String.CASE_INSENSITIVE_ORDER));
         for (int i = 0; i < Math.min(45, staff.size()); i++) {
             Player member = staff.get(i);
-            long last = staffStatusData.getLong("staff." + member.getUniqueId() + ".last-online", 0L);
-            String lastText = last <= 0L ? "Never" : new java.text.SimpleDateFormat("dd-MM-yyyy HH:mm").format(new Date(last));
+            String lastText = "Online now";
             String status = afkPlayers.contains(member.getUniqueId()) ? "§eAFK" : "§aONLINE";
             inv.setItem(i, createItem(Material.PLAYER_HEAD, "§a" + member.getName(), "§7Status: " + status, "§7Rank: §f" + getRank(member), "§7Last online: §f" + lastText));
         }

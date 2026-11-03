@@ -116,6 +116,11 @@ public class StaffJobsPlugin extends JavaPlugin implements Listener {
         Objects.requireNonNull(getCommand("staffmenu")).setExecutor(this);
         Objects.requireNonNull(getCommand("report")).setExecutor(this);
         Bukkit.getScheduler().runTaskTimer(this, this::removeExpiredReports, 20L * 60L, 20L * 60L);
+        if (getConfig().getBoolean("settings.backups.enabled", true)) {
+            long interval = Math.max(1L, getConfig().getLong("settings.backups.interval-hours", 24L));
+            long ticks = interval * 60L * 60L * 20L;
+            Bukkit.getScheduler().runTaskTimer(this, this::createDataBackup, ticks, ticks);
+        }
         if (getConfig().getBoolean("settings.auto-save", true)) {
             Bukkit.getScheduler().runTaskTimer(this, this::saveAllData, 20L * 60L * 5L, 20L * 60L * 5L);
         }
@@ -1407,6 +1412,30 @@ public class StaffJobsPlugin extends JavaPlugin implements Listener {
         target.sendMessage(PREFIX + ChatColor.GREEN + "Your inventory has been restored by a staff member.");
     }
 
+    private void createDataBackup() {
+        File backupDir = new File(getDataFolder(), "backups");
+        if (!backupDir.exists() && !backupDir.mkdirs()) { getLogger().warning("Could not create backup directory."); return; }
+        String stamp = java.time.LocalDateTime.now(getConfiguredZone()).format(DateTimeFormatter.ofPattern("yyyyMMdd-HHmmss"));
+        File destination = new File(backupDir, "backup-" + stamp);
+        if (!destination.mkdirs()) return;
+        File[] files = { frozenFile, reportsFile, notificationsFile, logsFile, deathsFile, punishmentsFile };
+        try {
+            for (File source : files) {
+                if (source != null && source.isFile()) java.nio.file.Files.copy(source.toPath(), new File(destination, source.getName()).toPath(), java.nio.file.StandardCopyOption.REPLACE_EXISTING);
+            }
+            int keep = Math.max(1, getConfig().getInt("settings.backups.keep", 7));
+            File[] snapshots = backupDir.listFiles(File::isDirectory);
+            if (snapshots != null) {
+                Arrays.sort(snapshots, Comparator.comparingLong(File::lastModified).reversed());
+                for (int i = keep; i < snapshots.length; i++) deleteBackupTree(snapshots[i]);
+            }
+            getLogger().info("Created data backup: " + destination.getName());
+        } catch (java.io.IOException exception) { getLogger().severe("Data backup failed: " + exception.getMessage()); }
+    }
+    private void deleteBackupTree(File file) throws java.io.IOException {
+        if (file.isDirectory()) { File[] children = file.listFiles(); if (children != null) for (File child : children) deleteBackupTree(child); }
+        java.nio.file.Files.deleteIfExists(file.toPath());
+    }
     private void openOnlineStaff(Player viewer) {
         Inventory inv = Bukkit.createInventory(null, 54, ONLINE_STAFF);
         List<Player> staff = new ArrayList<>();

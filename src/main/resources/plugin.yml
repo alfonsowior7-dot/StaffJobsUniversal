@@ -1,0 +1,76 @@
+name: STAFFJOBS
+version: 1.0.3
+main: com.fonzzscripter.staffjobs.StaffJobsPlugin
+api-version: '1.20'
+author: FonzzScripter
+description: Universal Advanced Server Staff Management
+
+commands:
+  staffjobs:
+    description: Display STAFFJOBS version and author information
+    usage: /staffjobs
+  staffmenu:
+    description: Open STAFFJOBS management menu
+    usage: /staffmenu
+    permission: staffjobs.use
+  report:
+    description: Report a server issue
+    usage: /report <message>
+    permission: staffjobs.report
+  warn:
+    description: Warn an online player
+    usage: /warn <player> <reason>
+    permission: staffjobs.warn
+  mute:
+    description: Temporarily mute an online player
+    usage: /mute <player> <duration> <reason>
+    permission: staffjobs.mute
+  unmute:
+    description: Remove a player's mute
+    usage: /unmute <player>
+    permission: staffjobs.unmute
+  punishments:
+    description: View a player's punishment history
+    usage: /punishments <player>
+    permission: staffjobs.punishments
+
+permissions:
+  staffjobs.updatecheck:
+    description: Receive STAFFJOBS version update notifications
+    default: op
+  staffjobs.use:
+    description: Open staff menu
+    default: op
+  staffjobs.report:
+    description: Submit reports
+    default: true
+  staffjobs.deathnotify:
+    description: Receive private player death notifications
+    default: op
+  staffjobs.kick:
+    description: Kick players
+    default: op
+  staffjobs.ban:
+    description: Ban players
+    default: op
+  staffjobs.freeze:
+    description: Freeze players
+    default: op
+  staffjobs.invsee:
+    description: View and manage player inventories through Player Management
+    default: op
+  staffjobs.protect.bypass:
+    description: Bypass staff hierarchy
+    default: false
+  staffjobs.warn:
+    description: Issue player warnings
+    default: op
+  staffjobs.mute:
+    description: Mute players
+    default: op
+  staffjobs.unmute:
+    description: Unmute players
+    default: op
+  staffjobs.punishments:
+    description: View punishment history
+    default: op

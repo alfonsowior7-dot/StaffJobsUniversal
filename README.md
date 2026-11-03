@@ -1,6 +1,6 @@
 # STAFFJOBS UNIVERSAL 1.0.1
 
-**Universal Update — Feature Work in Progress**
+**Universal Staff Management Plugin — 1.0.1**
 
 STAFFJOBS UNIVERSAL is a Minecraft staff management plugin designed to bring essential moderation and server administration tools together in one plugin.
 
@@ -27,6 +27,18 @@ STAFFJOBS UNIVERSAL is a Minecraft staff management plugin designed to bring ess
 - Improved empty-report message validation.
 - Added periodic data saving when auto-save is enabled.
 - Added a final data save during plugin shutdown.
+- Added staff AFK status and last-online tracking in the Online Staff GUI.
+- Added manual backup creation, backup listing, and guarded backup restoration through `/staffbackup`.
+- Included staff status data in scheduled backups.
+- Expanded activity log entries with explicit actor, target, action, before, and after fields where available.
+
+## Backup Commands
+
+- `/staffbackup create` — create a manual data backup.
+- `/staffbackup list` — list available backups.
+- `/staffbackup restore <backup-name>` — restore data files from a named backup. A safety backup is created first; restart the server after restoration so in-memory data reloads.
+
+Requires `staffjobs.backup` (default: operators).
 
 ## Platform and Runtime
 
@@ -67,10 +79,6 @@ gradle clean build
 Output:
 
 `build/libs/StaffJobsUniversal-1.0.1.jar`
-
-## 1.0.1 Development Status
-
-The following requested features are not yet included in this build: report lifecycle/history and spam cooldown, expanded GUI confirmation flows, structured before/after audit records, and scheduled/retained data backups. Do not assume these are available until a later build explicitly lists them.
 
 ## Versioning
 

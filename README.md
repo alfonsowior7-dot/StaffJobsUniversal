@@ -22,7 +22,7 @@ STAFFJOBS UNIVERSAL is a Minecraft staff management plugin designed to bring ess
 - Added reporter notifications for accepted and rejected reports, including offline delivery.
 - Added report action audit entries.
 - Added refresh control to Staff Activity Logs.
-- Added one-time death inventory restoration protection and restore metadata (staff and timestamp).
+- Kept death inventory restoration repeatable; every restore is allowed and the latest staff, timestamp, and total restore count are recorded.
 - Improved death rollback audit entries with explicit before/after state.
 
 - Added an Online Staff GUI showing connected staff and their permission rank.

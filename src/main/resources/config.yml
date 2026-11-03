@@ -2,6 +2,8 @@
 settings:
   notifications:
     sound: BLOCK_NOTE_BLOCK_PLING
+  staff:
+    afk-minutes: 5
   backups:
     enabled: true
     interval-hours: 24

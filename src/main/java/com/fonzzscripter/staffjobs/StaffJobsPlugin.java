@@ -169,10 +169,9 @@ public class StaffJobsPlugin extends JavaPlugin implements Listener {
     private void loadReports() {
         reportsFile = new File(getDataFolder(), "reports.yml");
         reportsData = YamlConfiguration.loadConfiguration(reportsFile);
-        if (!reportsData.contains("reports")) {
-            reportsData.set("reports", new ArrayList<>());
-            saveReports();
-        }
+        if (!reportsData.contains("reports")) reportsData.set("reports", new ArrayList<>());
+        if (!reportsData.contains("history")) reportsData.set("history", new ArrayList<>());
+        saveReports();
     }
 
     private void saveReports() {
@@ -510,6 +509,17 @@ public class StaffJobsPlugin extends JavaPlugin implements Listener {
 
         String reporterName = reportValue(target, "player", "Unknown");
         String reporterUUID = reportValue(target, "uuid", "");
+        Map<String, Object> archived = new LinkedHashMap<>();
+        for (Map.Entry<?, ?> entry : target.entrySet()) archived.put(String.valueOf(entry.getKey()), entry.getValue());
+        archived.put("status", "ACCEPTED");
+        archived.put("assigned-staff", staff.getName());
+        archived.put("resolved-timestamp", System.currentTimeMillis());
+        archived.put("resolved-date", ZonedDateTime.now(getConfiguredZone()).format(dateFormatter) + " " + getZoneLabel());
+        List<Map<?, ?>> history = new ArrayList<>(reportsData.getMapList("history"));
+        history.add(archived);
+        int historyLimit = Math.max(1, getConfig().getInt("settings.reports.max-history", 500));
+        while (history.size() > historyLimit) history.remove(0);
+        reportsData.set("history", history);
         reports.remove(target);
         reportsData.set("reports", reports);
         saveReports();

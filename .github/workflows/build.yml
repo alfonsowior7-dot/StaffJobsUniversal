@@ -21,9 +21,16 @@ jobs:
         uses: gradle/actions/setup-gradle@v4
       - name: Build universal plugin
         run: gradle clean build
-      - name: Upload STAFFJOBS JAR
+      - name: Verify release JAR and plugin version
+        shell: bash
+        run: |
+          JAR="build/libs/StaffJobsUniversal-1.0.0.jar"
+          test -f "$JAR"
+          unzip -p "$JAR" plugin.yml | grep -Fx "version: 1.0.0"
+          echo "Verified release file: $JAR"
+      - name: Upload STAFFJOBS Universal 1.0.0
         uses: actions/upload-artifact@v4
         with:
-          name: StaffJobs1.0.4
-          path: build/libs/StaffJobs1.0.4.jar
+          name: StaffJobsUniversal-1.0.0
+          path: build/libs/StaffJobsUniversal-1.0.0.jar
           if-no-files-found: error

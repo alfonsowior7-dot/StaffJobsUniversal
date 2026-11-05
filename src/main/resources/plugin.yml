@@ -1,5 +1,5 @@
 name: STAFFJOBS
-version: 1.1.0
+version: 1.1.1
 main: com.fonzzscripter.staffjobs.StaffJobsPlugin
 api-version: '1.20'
 author: FonzzScripter
@@ -80,7 +80,4 @@ permissions:
     default: op
   staffjobs.punishments:
     description: View punishment history
-    default: op
-  staffjobs.xray.alert:
-    description: Receive rare-material anomaly alerts
     default: op

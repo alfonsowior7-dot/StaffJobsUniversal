@@ -1,6 +1,6 @@
-# STAFFJOBS UNIVERSAL 1.1.0
+# STAFFJOBS UNIVERSAL 1.1.1
 
-**Universal Staff Management Plugin — 1.1.0**
+**Universal Staff Management Plugin — 1.1.1**
 
 STAFFJOBS UNIVERSAL is a Minecraft staff management plugin that brings moderation, staff tools, activity tracking, and configurable server administration features together in one plugin.
 
@@ -14,22 +14,11 @@ STAFFJOBS UNIVERSAL is a Minecraft staff management plugin that brings moderatio
 - Punishment management and history
 - Staff notifications
 - Configurable plugin settings
-- Configurable mining-based X-Ray activity alerts
 
-## 1.1.0 Release Notes
+## 1.1.1 Release Notes
 
-- Updated the plugin version to 1.1.0.
-- Added configurable X-Ray activity monitoring for selected mining drops.
-- X-Ray monitoring tracks configured materials produced when a player mines blocks, rather than when items are picked up.
-- Added configurable material thresholds, rolling time window, alert cooldown, and staff notification toggle.
-- Added configurable monitoring for diamonds, emeralds, ancient debris, lapis lazuli, redstone, and raw iron.
-- X-Ray alerts are investigative signals only and do not automatically punish players.
-
-### X-Ray Configuration
-
-The X-Ray monitoring settings are available in `config.yml` under `settings.xray-detection`.
-
-You can enable or disable monitoring, set the time window, configure the alert cooldown, toggle staff notifications, and set a separate threshold for each supported material.
+- Removed the experimental X-Ray activity detection feature.
+- Kept the core staff management, reports, activity logs, death logs, and punishment tools.
 
 ## Previous 1.0.2 Improvements
 
@@ -79,7 +68,7 @@ The universal build is intended for these Paper version families:
 ## Installation
 
 1. Stop your Paper server.
-2. Place `StaffJobsUniversal-1.1.0.jar` in the server's `plugins` directory.
+2. Place `StaffJobsUniversal-1.1.1.jar` in the server's `plugins` directory.
 3. Start the server.
 4. Check the console for successful plugin loading.
 
@@ -95,14 +84,14 @@ gradle clean build
 
 Output:
 
-`build/libs/StaffJobsUniversal-1.1.0.jar`
+`build/libs/StaffJobsUniversal-1.1.1.jar`
 
 ## Versioning
 
 STAFFJOBS UNIVERSAL follows Semantic Versioning:
 
 - Patch releases (for example, 1.0.2) contain bug fixes.
-- Minor releases (for example, 1.1.0) introduce backward-compatible features.
+- Minor releases (for example, 1.1.1) introduce backward-compatible features.
 - Major releases (for example, 2.0.0) may contain breaking changes.
 
 ## Support, Issue Tracker, and Source Code

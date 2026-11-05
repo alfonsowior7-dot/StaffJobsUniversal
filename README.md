@@ -1,21 +1,37 @@
-# STAFFJOBS UNIVERSAL 1.0.2
+# STAFFJOBS UNIVERSAL 1.1.0
 
-**Universal Staff Management Plugin — 1.0.2**
+**Universal Staff Management Plugin — 1.1.0**
 
-STAFFJOBS UNIVERSAL is a Minecraft staff management plugin designed to bring essential moderation and server administration tools together in one plugin.
+STAFFJOBS UNIVERSAL is a Minecraft staff management plugin that brings moderation, staff tools, activity tracking, and configurable server administration features together in one plugin.
 
 ## Features
 
 - Staff management system
 - Player report system
 - Staff activity logs
-- Death logs and item restoration
+- Death logs and repeatable item restoration
 - Player freeze system
 - Punishment management and history
 - Staff notifications
 - Configurable plugin settings
+- Configurable mining-based X-Ray activity alerts
 
-## 1.0.2 Release Notes
+## 1.1.0 Release Notes
+
+- Updated the plugin version to 1.1.0.
+- Added configurable X-Ray activity monitoring for selected mining drops.
+- X-Ray monitoring tracks configured materials produced when a player mines blocks, rather than when items are picked up.
+- Added configurable material thresholds, rolling time window, alert cooldown, and staff notification toggle.
+- Added configurable monitoring for diamonds, emeralds, ancient debris, lapis lazuli, redstone, and raw iron.
+- X-Ray alerts are investigative signals only and do not automatically punish players.
+
+### X-Ray Configuration
+
+The X-Ray monitoring settings are available in `config.yml` under `settings.xray-detection`.
+
+You can enable or disable monitoring, set the time window, configure the alert cooldown, toggle staff notifications, and set a separate threshold for each supported material.
+
+## Previous 1.0.2 Improvements
 
 - Added report assignment to the currently viewing staff member, with protection against taking a report already assigned to another staff member.
 - Added explicit report rejection and archived `REJECTED` status alongside accepted reports.
@@ -24,21 +40,13 @@ STAFFJOBS UNIVERSAL is a Minecraft staff management plugin designed to bring ess
 - Added refresh control to Staff Activity Logs.
 - Kept death inventory restoration repeatable; every restore is allowed and the latest staff, timestamp, and total restore count are recorded.
 - Improved death rollback audit entries with explicit before/after state.
-
 - Added an Online Staff GUI showing connected staff and their permission rank.
 - Added persistent per-staff chat and sound notification toggles for new reports.
 - Added configurable notification sound through `settings.notifications.sound`.
-- Improved frozen-player interaction restrictions, including inventory clicks, dragging, hotbar switching, and off-hand swapping.
-- Kept death notifications private to staff with the configured permission.
-- Added configurable timezone handling.
-- Added configurable punishment history limits and mute messages.
-- Improved empty-report message validation.
-- Added periodic data saving when auto-save is enabled.
-- Added a final data save during plugin shutdown.
-- Added staff AFK status using movement, chat, commands, interactions, inventory clicks, and block activity; online members display “Online now”.
-- Added manual backup creation, backup listing, and guarded backup restoration through `/staffbackup`; backups flush current data first, use millisecond-unique names, and report failures accurately.
-- Included staff status data in scheduled backups.
-- Expanded activity log entries with explicit actor, target, action, before, and after fields where available.
+- Improved frozen-player interaction restrictions.
+- Added configurable timezone handling and punishment history limits.
+- Added periodic data saving when auto-save is enabled and a final data save during plugin shutdown.
+- Added staff AFK status and manual backup management through `/staffbackup`.
 
 ## Backup Commands
 
@@ -71,7 +79,7 @@ The universal build is intended for these Paper version families:
 ## Installation
 
 1. Stop your Paper server.
-2. Place `StaffJobsUniversal-1.0.2.jar` in the server's `plugins` directory.
+2. Place `StaffJobsUniversal-1.1.0.jar` in the server's `plugins` directory.
 3. Start the server.
 4. Check the console for successful plugin loading.
 
@@ -87,7 +95,7 @@ gradle clean build
 
 Output:
 
-`build/libs/StaffJobsUniversal-1.0.2.jar`
+`build/libs/StaffJobsUniversal-1.1.0.jar`
 
 ## Versioning
 

@@ -1,6 +1,6 @@
-# STAFFJOBS UNIVERSAL 1.1.1
+# STAFFJOBS UNIVERSAL 1.1.0
 
-**Universal Staff Management Plugin — 1.1.1**
+**Universal Staff Management Plugin — 1.1.0**
 
 STAFFJOBS UNIVERSAL is a Minecraft staff management plugin that brings moderation, staff tools, activity tracking, and configurable server administration features together in one plugin.
 
@@ -15,10 +15,11 @@ STAFFJOBS UNIVERSAL is a Minecraft staff management plugin that brings moderatio
 - Staff notifications
 - Configurable plugin settings
 
-## 1.1.1 Release Notes
+## 1.1.0 Release Notes
 
-- Removed the experimental X-Ray activity detection feature.
-- Kept the core staff management, reports, activity logs, death logs, and punishment tools.
+- Added an operator-only, per-player X-Ray view in the second STAFFJOBS menu page.
+- Toggle X-Ray on or off from `/staffmenu` → Next Page.
+- X-Ray changes are visual only and do not modify world blocks.
 
 ## Previous 1.0.2 Improvements
 
@@ -68,7 +69,7 @@ The universal build is intended for these Paper version families:
 ## Installation
 
 1. Stop your Paper server.
-2. Place `StaffJobsUniversal-1.1.1.jar` in the server's `plugins` directory.
+2. Place `StaffJobsUniversal-1.1.0.jar` in the server's `plugins` directory.
 3. Start the server.
 4. Check the console for successful plugin loading.
 
@@ -84,14 +85,14 @@ gradle clean build
 
 Output:
 
-`build/libs/StaffJobsUniversal-1.1.1.jar`
+`build/libs/StaffJobsUniversal-1.1.0.jar`
 
 ## Versioning
 
 STAFFJOBS UNIVERSAL follows Semantic Versioning:
 
 - Patch releases (for example, 1.0.2) contain bug fixes.
-- Minor releases (for example, 1.1.1) introduce backward-compatible features.
+- Minor releases (for example, 1.1.0) introduce backward-compatible features.
 - Major releases (for example, 2.0.0) may contain breaking changes.
 
 ## Support, Issue Tracker, and Source Code

@@ -72,6 +72,7 @@ public class StaffJobsPlugin extends JavaPlugin implements Listener {
     private final Set<UUID> frozen = new HashSet<>();
     private final Set<UUID> xrayEnabled = java.util.concurrent.ConcurrentHashMap.newKeySet();
     private final Map<UUID, Set<Location>> xrayHiddenBlocks = new java.util.concurrent.ConcurrentHashMap<>();
+    private final Map<UUID, String> xrayChunkKeys = new java.util.concurrent.ConcurrentHashMap<>();
     private final Map<UUID, UUID> selected = new HashMap<>();
     private final Map<UUID, String> pendingAction = new java.util.concurrent.ConcurrentHashMap<>();
     private final Map<UUID, String> pendingReason = new java.util.concurrent.ConcurrentHashMap<>();
@@ -1873,6 +1874,7 @@ public class StaffJobsPlugin extends JavaPlugin implements Listener {
     private void disableXray(Player player, boolean notify) {
         UUID id = player.getUniqueId();
         xrayEnabled.remove(id);
+        xrayChunkKeys.remove(id);
         Set<Location> hidden = xrayHiddenBlocks.remove(id);
         if (hidden != null) {
             for (Location location : hidden) {
@@ -1898,25 +1900,33 @@ public class StaffJobsPlugin extends JavaPlugin implements Listener {
 
     private void refreshXrayView(Player player) {
         if (!xrayEnabled.contains(player.getUniqueId())) return;
-        Set<Location> previous = xrayHiddenBlocks.remove(player.getUniqueId());
+
+        World world = player.getWorld();
+        org.bukkit.Chunk chunk = player.getLocation().getChunk();
+        String chunkKey = world.getUID() + ":" + chunk.getX() + ":" + chunk.getZ();
+        UUID playerId = player.getUniqueId();
+        if (chunkKey.equals(xrayChunkKeys.get(playerId))) return;
+
+        Set<Location> previous = xrayHiddenBlocks.remove(playerId);
         if (previous != null) {
             for (Location location : previous) {
-                World world = location.getWorld();
-                if (world != null && world.isChunkLoaded(location.getBlockX() >> 4, location.getBlockZ() >> 4)) {
-                    player.sendBlockChange(location, world.getBlockAt(location).getBlockData());
+                World previousWorld = location.getWorld();
+                if (previousWorld != null && previousWorld.isChunkLoaded(location.getBlockX() >> 4, location.getBlockZ() >> 4)) {
+                    player.sendBlockChange(location, previousWorld.getBlockAt(location).getBlockData());
                 }
             }
         }
 
         Set<Location> hidden = new HashSet<>();
-        Location center = player.getLocation();
-        World world = center.getWorld();
-        int cx = center.getBlockX(), cy = center.getBlockY(), cz = center.getBlockZ();
-        for (int x = cx - 6; x <= cx + 6; x++) {
-            for (int y = Math.max(world.getMinHeight(), cy - 5); y <= Math.min(world.getMaxHeight() - 1, cy + 5); y++) {
-                for (int z = cz - 6; z <= cz + 6; z++) {
-                    if (!world.isChunkLoaded(x >> 4, z >> 4)) continue;
-                    org.bukkit.block.Block block = world.getBlockAt(x, y, z);
+        int minY = world.getMinHeight();
+        int maxY = world.getMaxHeight();
+        int startX = chunk.getX() << 4;
+        int startZ = chunk.getZ() << 4;
+        // Scan the full 16x16 chunk column across the world's build height.
+        for (int x = startX; x < startX + 16; x++) {
+            for (int z = startZ; z < startZ + 16; z++) {
+                for (int y = minY; y < maxY; y++) {
+                    org.bukkit.block.Block block = chunk.getBlock(x & 15, y, z & 15);
                     Material type = block.getType();
                     if (!type.isSolid() || isOre(type) || block.getState() instanceof org.bukkit.block.TileState) continue;
                     Location location = block.getLocation();
@@ -1925,7 +1935,8 @@ public class StaffJobsPlugin extends JavaPlugin implements Listener {
                 }
             }
         }
-        xrayHiddenBlocks.put(player.getUniqueId(), hidden);
+        xrayHiddenBlocks.put(playerId, hidden);
+        xrayChunkKeys.put(playerId, chunkKey);
     }
 
     @EventHandler

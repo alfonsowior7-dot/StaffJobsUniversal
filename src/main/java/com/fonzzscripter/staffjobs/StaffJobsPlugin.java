@@ -121,7 +121,6 @@ public class StaffJobsPlugin extends JavaPlugin implements Listener {
         loadPunishments();
         loadStaffStatus();
         getServer().getPluginManager().registerEvents(this, this);
-        getServer().getPluginManager().registerEvents(new XrayDetectionListener(this), this);
         if (getConfig().getBoolean("settings.update-check.enabled", true)) checkForUpdates();
         Objects.requireNonNull(getCommand("staffmenu")).setExecutor(this);
         Objects.requireNonNull(getCommand("report")).setExecutor(this);

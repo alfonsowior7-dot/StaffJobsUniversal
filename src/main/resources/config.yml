@@ -34,30 +34,6 @@ settings:
   death-notifications:
     enabled: true
     permission: staffjobs.deathnotify
-  xray-detection:
-    enabled: true
-    time-window-seconds: 60
-    notify-staff: true
-    alert-cooldown-seconds: 60
-    materials:
-      DIAMOND:
-        enabled: true
-        threshold: 30
-      EMERALD:
-        enabled: true
-        threshold: 20
-      ANCIENT_DEBRIS:
-        enabled: true
-        threshold: 10
-      LAPIS_LAZULI:
-        enabled: true
-        threshold: 48
-      REDSTONE:
-        enabled: true
-        threshold: 64
-      RAW_IRON:
-        enabled: true
-        threshold: 32
   punishments:
     max-history-per-player: 100
     mute-message: "You are muted and cannot chat."

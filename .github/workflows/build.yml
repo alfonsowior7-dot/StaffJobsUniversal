@@ -27,13 +27,13 @@ jobs:
       - name: Verify release JAR and plugin version
         shell: bash
         run: |
-          JAR="build/libs/StaffJobsUniversal-1.0.2.jar"
+          JAR="build/libs/StaffJobsUniversal-1.1.0.jar"
           test -f "$JAR"
-          unzip -p "$JAR" plugin.yml | grep -Fx "version: 1.0.2"
+          unzip -p "$JAR" plugin.yml | grep -Fx "version: 1.1.0"
           echo "Verified release file: $JAR"
-      - name: Upload STAFFJOBS Universal 1.0.2
+      - name: Upload STAFFJOBS Universal 1.1.0
         uses: actions/upload-artifact@v4
         with:
-          name: StaffJobsUniversal-1.0.2
-          path: build/libs/StaffJobsUniversal-1.0.2.jar
+          name: StaffJobsUniversal-1.1.0
+          path: build/libs/StaffJobsUniversal-1.1.0.jar
           if-no-files-found: error

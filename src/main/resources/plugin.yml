@@ -81,6 +81,3 @@ permissions:
   staffjobs.punishments:
     description: View punishment history
     default: op
-  staffjobs.xray:
-    description: Use the staff X-Ray view
-    default: op

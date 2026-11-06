@@ -636,6 +636,8 @@ public class StaffJobsPlugin extends JavaPlugin implements Listener {
             reports.set(reports.indexOf(raw), updated);
             reportsData.set("reports", reports);
             saveReports();
+            logAction(staff, "REPORT_ASSIGNED", reportValue(raw, "player", "Unknown") + " [" + id + "]",
+                    assigned, staff.getName());
             staff.sendMessage(PREFIX + ChatColor.GREEN + "Report " + id + " assigned to you.");
             return;
         }
@@ -1134,7 +1136,10 @@ public class StaffJobsPlugin extends JavaPlugin implements Listener {
                     player.sendMessage(PREFIX + ChatColor.RED + "You cannot freeze yourself.");
                     return;
                 }
+                boolean wasFrozen = frozen.contains(target.getUniqueId());
                 toggleFreeze(target);
+                logAction(player, wasFrozen ? "UNFREEZE" : "FREEZE", target.getName(),
+                        wasFrozen ? "Frozen" : "Unfrozen", wasFrozen ? "Unfrozen" : "Frozen");
                 openActions(player, target);
             } else if (slot == 20) {
                 if (!player.hasPermission("staffjobs.invsee")) {
@@ -1655,11 +1660,17 @@ public class StaffJobsPlugin extends JavaPlugin implements Listener {
                 sender.sendMessage(PREFIX + ChatColor.RED + "Invalid backup name.");
                 return;
             }
+            String[] names = {"frozen.yml", "reports.yml", "notifications.yml", "staff-logs.yml", "deaths.yml", "punishments.yml", "staff-status.yml"};
+            for (String name : names) {
+                if (!new File(backup, name).isFile()) {
+                    sender.sendMessage(PREFIX + ChatColor.RED + "Backup is incomplete (missing " + name + "). Restore was cancelled.");
+                    return;
+                }
+            }
             if (!createDataBackup(backup.getName())) {
                 sender.sendMessage(PREFIX + ChatColor.RED + "Could not create the required safety backup. Restore was cancelled.");
                 return;
             }
-            String[] names = {"frozen.yml", "reports.yml", "notifications.yml", "staff-logs.yml", "deaths.yml", "punishments.yml", "staff-status.yml"};
             for (String name : names) {
                 File source = new File(backup, name);
                 if (source.isFile()) java.nio.file.Files.copy(source.toPath(), new File(getDataFolder(), name).toPath(), java.nio.file.StandardCopyOption.REPLACE_EXISTING);

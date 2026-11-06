@@ -1929,6 +1929,12 @@ public class StaffJobsPlugin extends JavaPlugin implements Listener {
                     org.bukkit.block.Block block = chunk.getBlock(x & 15, y, z & 15);
                     Material type = block.getType();
                     if (!type.isSolid() || isOre(type) || block.getState() instanceof org.bukkit.block.TileState) continue;
+
+                    // Never mask blocks in the player's immediate collision area.
+                    // Sending AIR for the floor/body area makes the client predict falling
+                    // through the world, then the server corrects the position (rubber-banding).
+                    if (isInsideXrayCollisionBuffer(player, x, y, z)) continue;
+
                     Location location = block.getLocation();
                     player.sendBlockChange(location, Material.AIR.createBlockData());
                     hidden.add(location);
@@ -1937,6 +1943,56 @@ public class StaffJobsPlugin extends JavaPlugin implements Listener {
         }
         xrayHiddenBlocks.put(playerId, hidden);
         xrayChunkKeys.put(playerId, chunkKey);
+    }
+
+    private boolean isInsideXrayCollisionBuffer(Player player, int x, int y, int z) {
+        Location location = player.getLocation();
+        int playerX = location.getBlockX();
+        int playerY = location.getBlockY();
+        int playerZ = location.getBlockZ();
+        return Math.abs(x - playerX) <= 1
+                && Math.abs(z - playerZ) <= 1
+                && y >= playerY - 1
+                && y <= playerY + 2;
+    }
+
+    @EventHandler
+    public void onXrayMovement(PlayerMoveEvent event) {
+        Player player = event.getPlayer();
+        if (!xrayEnabled.contains(player.getUniqueId()) || event.getTo() == null) return;
+
+        Location from = event.getFrom();
+        Location to = event.getTo();
+        if (from.getBlockX() == to.getBlockX()
+                && from.getBlockY() == to.getBlockY()
+                && from.getBlockZ() == to.getBlockZ()
+                && from.getWorld().equals(to.getWorld())) return;
+
+        // Rebuild only when entering another chunk; otherwise reveal the nearby
+        // real collision blocks so client-side movement stays synchronized.
+        refreshXrayView(player);
+        revealXrayCollisionBuffer(player);
+    }
+
+    private void revealXrayCollisionBuffer(Player player) {
+        Set<Location> hidden = xrayHiddenBlocks.get(player.getUniqueId());
+        if (hidden == null) return;
+
+        Location location = player.getLocation();
+        World world = player.getWorld();
+        int centerX = location.getBlockX();
+        int centerY = location.getBlockY();
+        int centerZ = location.getBlockZ();
+
+        for (int x = centerX - 1; x <= centerX + 1; x++) {
+            for (int z = centerZ - 1; z <= centerZ + 1; z++) {
+                for (int y = centerY - 1; y <= centerY + 2; y++) {
+                    Location blockLocation = new Location(world, x, y, z);
+                    if (!hidden.remove(blockLocation)) continue;
+                    player.sendBlockChange(blockLocation, world.getBlockAt(x, y, z).getBlockData());
+                }
+            }
+        }
     }
 
     @EventHandler

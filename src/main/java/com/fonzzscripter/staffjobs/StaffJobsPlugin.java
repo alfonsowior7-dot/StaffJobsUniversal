@@ -59,7 +59,6 @@ import java.util.*;
 public class StaffJobsPlugin extends JavaPlugin implements Listener {
     private static final String PREFIX = ChatColor.YELLOW + "[ʜᴇʟᴘᴇʀꜱᴛᴀꜰꜰ] ";
     private static final String MENU = "§8STAFFJOBS";
-    private static final String MENU_XRAY = "§8STAFFJOBS - Page 2";
     private static final String PLAYERS = "§8Select Player";
     private static final String ACTIONS = "§8Manage Player";
     private static final String CONFIRM = "§8Confirmation";
@@ -70,9 +69,6 @@ public class StaffJobsPlugin extends JavaPlugin implements Listener {
     private static final String STAFF_HISTORY_DETAIL = "§8Staff History Details";
 
     private final Set<UUID> frozen = new HashSet<>();
-    private final Set<UUID> xrayEnabled = java.util.concurrent.ConcurrentHashMap.newKeySet();
-    private final Map<UUID, Set<Location>> xrayHiddenBlocks = new java.util.concurrent.ConcurrentHashMap<>();
-    private final Map<UUID, String> xrayChunkKeys = new java.util.concurrent.ConcurrentHashMap<>();
     private final Map<UUID, UUID> selected = new HashMap<>();
     private final Map<UUID, String> pendingAction = new java.util.concurrent.ConcurrentHashMap<>();
     private final Map<UUID, String> pendingReason = new java.util.concurrent.ConcurrentHashMap<>();
@@ -125,7 +121,6 @@ public class StaffJobsPlugin extends JavaPlugin implements Listener {
         loadPunishments();
         loadStaffStatus();
         getServer().getPluginManager().registerEvents(this, this);
-        Bukkit.getScheduler().runTaskTimer(this, this::refreshAllXrayViews, 40L, 40L);
         if (getConfig().getBoolean("settings.update-check.enabled", true)) checkForUpdates();
         Objects.requireNonNull(getCommand("staffmenu")).setExecutor(this);
         Objects.requireNonNull(getCommand("report")).setExecutor(this);
@@ -163,7 +158,6 @@ public class StaffJobsPlugin extends JavaPlugin implements Listener {
 
     @Override
     public void onDisable() {
-        for (Player online : Bukkit.getOnlinePlayers()) disableXray(online, false);
         saveAllData();
         selected.clear();
         pendingAction.clear();
@@ -878,18 +872,6 @@ public class StaffJobsPlugin extends JavaPlugin implements Listener {
         player.openInventory(inventory);
     }
 
-    private void openStaffMenuPageTwo(Player player) {
-        Inventory inventory = Bukkit.createInventory(null, 54, MENU_XRAY);
-        boolean enabled = xrayEnabled.contains(player.getUniqueId());
-        inventory.setItem(22, createItem(enabled ? Material.LIME_DYE : Material.GRAY_DYE,
-                "§eX-Ray: " + (enabled ? "§aENABLED" : "§cDISABLED"),
-                "§7Toggle ore visibility through nearby blocks.",
-                "§7Visual only; world blocks are not changed."));
-        inventory.setItem(45, createItem(Material.ARROW, "§ePrevious Page"));
-        inventory.setItem(49, createItem(Material.BARRIER, "§cClose Menu"));
-        player.openInventory(inventory);
-    }
-
     private void openPlayers(Player player) {
         openPlayers(player, playerPages.getOrDefault(player.getUniqueId(), 0));
     }
@@ -939,8 +921,7 @@ public class StaffJobsPlugin extends JavaPlugin implements Listener {
     @EventHandler
     public void onStaffLogsInventoryDrag(InventoryDragEvent event) {
         String title = event.getView().getTitle();
-        if (title.equals("§8Staff Activity Logs") || title.equals(STAFF_HISTORY_DETAIL)
-                || title.equals(MENU) || title.equals(MENU_XRAY)) {
+        if (title.equals("§8Staff Activity Logs") || title.equals(STAFF_HISTORY_DETAIL)) {
             event.setCancelled(true);
         }
     }
@@ -956,7 +937,7 @@ public class StaffJobsPlugin extends JavaPlugin implements Listener {
             return;
         }
 
-        if (!title.equals(MENU) && !title.equals(MENU_XRAY) && !title.startsWith(REPORTS) && !title.equals(REPORT_DETAIL)
+        if (!title.equals(MENU) && !title.startsWith(REPORTS) && !title.equals(REPORT_DETAIL)
                 && !title.equals(PLAYERS) && !title.equals(ACTIONS) && !title.equals(CONFIRM)
                 && !title.equals("§8Staff Activity Logs") && !title.equals(STAFF_HISTORY_DETAIL)
                 && !title.startsWith("§8Death History") && !title.equals("§8Death Rollback")
@@ -972,29 +953,13 @@ public class StaffJobsPlugin extends JavaPlugin implements Listener {
         if (slot < 0 || slot >= event.getInventory().getSize()) return;
 
         if (title.equals(MENU)) {
-            if (slot == 53) openStaffMenuPageTwo(player);
-            else if (slot == 10) openPlayers(player);
+            if (slot == 10) openPlayers(player);
             else if (slot == 13) openReportLogs(player, 0);
             else if (slot == 16) openActivityLogs(player, 0);
             else if (slot == 22) openDeathHistory(player, 0);
             else if (slot == 28) openOnlineStaff(player);
             else if (slot == 34) openNotificationSettings(player);
             else if (slot == 31) player.closeInventory();
-            return;
-        }
-
-        if (title.equals(MENU_XRAY)) {
-            if (slot == 45) openStaffMenu(player);
-            else if (slot == 49) player.closeInventory();
-            else if (slot == 22) {
-                if (!player.hasPermission("staffjobs.xray")) {
-                    player.sendMessage(PREFIX + ChatColor.RED + "You do not have permission to use X-Ray.");
-                    return;
-                }
-                if (xrayEnabled.contains(player.getUniqueId())) disableXray(player, true);
-                else enableXray(player);
-                openStaffMenuPageTwo(player);
-            }
             return;
         }
 
@@ -1859,146 +1824,6 @@ public class StaffJobsPlugin extends JavaPlugin implements Listener {
     }
     private void saveDeaths() { if (deathsData != null) saveFile(deathsData, deathsFile); }
 
-
-    private boolean isOre(Material type) {
-        return type.name().endsWith("_ORE") || type == Material.ANCIENT_DEBRIS;
-    }
-
-    private void enableXray(Player player) {
-        if (!player.hasPermission("staffjobs.xray")) return;
-        xrayEnabled.add(player.getUniqueId());
-        refreshXrayView(player);
-        player.sendMessage(PREFIX + ChatColor.GREEN + "X-Ray enabled.");
-    }
-
-    private void disableXray(Player player, boolean notify) {
-        UUID id = player.getUniqueId();
-        xrayEnabled.remove(id);
-        xrayChunkKeys.remove(id);
-        Set<Location> hidden = xrayHiddenBlocks.remove(id);
-        if (hidden != null) {
-            for (Location location : hidden) {
-                World world = location.getWorld();
-                if (world == null || !world.isChunkLoaded(location.getBlockX() >> 4, location.getBlockZ() >> 4)) continue;
-                player.sendBlockChange(location, world.getBlockAt(location).getBlockData());
-            }
-        }
-        if (notify) player.sendMessage(PREFIX + ChatColor.YELLOW + "X-Ray disabled.");
-    }
-
-    private void refreshAllXrayViews() {
-        for (UUID id : new HashSet<>(xrayEnabled)) {
-            Player player = Bukkit.getPlayer(id);
-            if (player == null || !player.isOnline() || !player.hasPermission("staffjobs.xray")) {
-                if (player != null) disableXray(player, false);
-                else xrayEnabled.remove(id);
-                continue;
-            }
-            refreshXrayView(player);
-        }
-    }
-
-    private void refreshXrayView(Player player) {
-        if (!xrayEnabled.contains(player.getUniqueId())) return;
-
-        World world = player.getWorld();
-        org.bukkit.Chunk chunk = player.getLocation().getChunk();
-        String chunkKey = world.getUID() + ":" + chunk.getX() + ":" + chunk.getZ();
-        UUID playerId = player.getUniqueId();
-        if (chunkKey.equals(xrayChunkKeys.get(playerId))) return;
-
-        Set<Location> previous = xrayHiddenBlocks.remove(playerId);
-        if (previous != null) {
-            for (Location location : previous) {
-                World previousWorld = location.getWorld();
-                if (previousWorld != null && previousWorld.isChunkLoaded(location.getBlockX() >> 4, location.getBlockZ() >> 4)) {
-                    player.sendBlockChange(location, previousWorld.getBlockAt(location).getBlockData());
-                }
-            }
-        }
-
-        Set<Location> hidden = new HashSet<>();
-        int minY = world.getMinHeight();
-        int maxY = world.getMaxHeight();
-        int startX = chunk.getX() << 4;
-        int startZ = chunk.getZ() << 4;
-        // Scan the full 16x16 chunk column across the world's build height.
-        for (int x = startX; x < startX + 16; x++) {
-            for (int z = startZ; z < startZ + 16; z++) {
-                for (int y = minY; y < maxY; y++) {
-                    org.bukkit.block.Block block = chunk.getBlock(x & 15, y, z & 15);
-                    Material type = block.getType();
-                    if (!type.isSolid() || isOre(type) || block.getState() instanceof org.bukkit.block.TileState) continue;
-
-                    // Never mask blocks in the player's immediate collision area.
-                    // Sending AIR for the floor/body area makes the client predict falling
-                    // through the world, then the server corrects the position (rubber-banding).
-                    if (isInsideXrayCollisionBuffer(player, x, y, z)) continue;
-
-                    Location location = block.getLocation();
-                    player.sendBlockChange(location, Material.AIR.createBlockData());
-                    hidden.add(location);
-                }
-            }
-        }
-        xrayHiddenBlocks.put(playerId, hidden);
-        xrayChunkKeys.put(playerId, chunkKey);
-    }
-
-    private boolean isInsideXrayCollisionBuffer(Player player, int x, int y, int z) {
-        Location location = player.getLocation();
-        int playerX = location.getBlockX();
-        int playerY = location.getBlockY();
-        int playerZ = location.getBlockZ();
-        return Math.abs(x - playerX) <= 1
-                && Math.abs(z - playerZ) <= 1
-                && y >= playerY - 1
-                && y <= playerY + 2;
-    }
-
-    @EventHandler
-    public void onXrayMovement(PlayerMoveEvent event) {
-        Player player = event.getPlayer();
-        if (!xrayEnabled.contains(player.getUniqueId()) || event.getTo() == null) return;
-
-        Location from = event.getFrom();
-        Location to = event.getTo();
-        if (from.getBlockX() == to.getBlockX()
-                && from.getBlockY() == to.getBlockY()
-                && from.getBlockZ() == to.getBlockZ()
-                && from.getWorld().equals(to.getWorld())) return;
-
-        // Rebuild only when entering another chunk; otherwise reveal the nearby
-        // real collision blocks so client-side movement stays synchronized.
-        refreshXrayView(player);
-        revealXrayCollisionBuffer(player);
-    }
-
-    private void revealXrayCollisionBuffer(Player player) {
-        Set<Location> hidden = xrayHiddenBlocks.get(player.getUniqueId());
-        if (hidden == null) return;
-
-        Location location = player.getLocation();
-        World world = player.getWorld();
-        int centerX = location.getBlockX();
-        int centerY = location.getBlockY();
-        int centerZ = location.getBlockZ();
-
-        for (int x = centerX - 1; x <= centerX + 1; x++) {
-            for (int z = centerZ - 1; z <= centerZ + 1; z++) {
-                for (int y = centerY - 1; y <= centerY + 2; y++) {
-                    Location blockLocation = new Location(world, x, y, z);
-                    if (!hidden.remove(blockLocation)) continue;
-                    player.sendBlockChange(blockLocation, world.getBlockAt(x, y, z).getBlockData());
-                }
-            }
-        }
-    }
-
-    @EventHandler
-    public void onXrayPlayerQuit(PlayerQuitEvent event) {
-        disableXray(event.getPlayer(), false);
-    }
 
     // STAFF HIERARCHY
 

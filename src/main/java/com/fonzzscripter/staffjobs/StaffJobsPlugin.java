@@ -141,7 +141,7 @@ public class StaffJobsPlugin extends JavaPlugin implements Listener {
         if (getConfig().getBoolean("settings.backups.enabled", true)) {
             long interval = Math.max(1L, getConfig().getLong("settings.backups.interval-hours", 24L));
             long ticks = interval * 60L * 60L * 20L;
-            Bukkit.getScheduler().runTaskTimer(this, this::createDataBackup, ticks, ticks);
+            Bukkit.getScheduler().runTaskTimer(this, () -> createDataBackup(), ticks, ticks);
         }
         if (getConfig().getBoolean("settings.auto-save", true)) {
             Bukkit.getScheduler().runTaskTimer(this, this::saveAllData, 20L * 60L * 5L, 20L * 60L * 5L);

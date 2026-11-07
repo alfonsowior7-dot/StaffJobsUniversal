@@ -26,7 +26,8 @@ The Fabric companion mod scaffold now lives in `staffjobs-ui/` in this repositor
 - [x] Add read-only online player list and online player profile.
 - [x] Add client-side name filtering to the online player list.
 - [ ] Add server-side search pagination and permission-aware management actions.
-- [ ] Add Report Center, Activity History, Death Logs, and Punishments.
+- [x] Add read-only Report Center queue (latest 20 reports; `staffjobs.reports` checked server-side).
+- [ ] Add report accept/reject/assignment actions, Activity History, Death Logs, and Punishments.
 - [ ] Add analytics and settings screens.
 - [ ] Add optional resource-pack assets.
 - [ ] Build and test each supported Minecraft version family separately.

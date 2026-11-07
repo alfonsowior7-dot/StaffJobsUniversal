@@ -46,7 +46,21 @@ public final class StaffJobsBridge implements PluginMessageListener {
         try (DataInputStream input = new DataInputStream(new ByteArrayInputStream(message))) {
             request = readString(input);
             if ("GET_PLAYER_PROFILE".equals(request)) targetName = readString(input);
-            if ("REPORT_ACTION".equals(request)) { reportAction = readString(input); reportId = readString(input); }
+            if ("GET_ACTIVITY".equals(request)) {
+            if (!player.hasPermission("staffjobs.activity")) {
+                sendResponse(player, "SECTION_DENIED", "activity", "Missing permission: staffjobs.activity");
+                return;
+            }
+            if (!(plugin instanceof StaffJobsPlugin)) { sendResponse(player, "ACTIVITY", "0"); return; }
+            java.util.List<String> entries = ((StaffJobsPlugin) plugin).getDashboardActivity();
+            String[] response = new String[2 + entries.size()];
+            response[0] = "ACTIVITY";
+            response[1] = Integer.toString(entries.size());
+            for (int i = 0; i < entries.size(); i++) response[i + 2] = safeField(entries.get(i), 240);
+            sendResponse(player, response);
+            return;
+        }
+        if ("REPORT_ACTION".equals(request)) { reportAction = readString(input); reportId = readString(input); }
             if (input.available() != 0) throw new IOException("Unexpected trailing payload");
         } catch (IOException exception) {
             plugin.getLogger().fine("Ignored malformed StaffJobs UI message from " + player.getName());

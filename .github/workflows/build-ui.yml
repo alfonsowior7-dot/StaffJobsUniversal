@@ -1,0 +1,41 @@
+name: Build StaffJobs UI (Fabric)
+
+on:
+  push:
+    branches:
+      - beta-2.0.0
+    paths:
+      - "staffjobs-ui/**"
+      - ".github/workflows/build-ui.yml"
+  pull_request:
+    branches:
+      - beta-2.0.0
+    paths:
+      - "staffjobs-ui/**"
+      - ".github/workflows/build-ui.yml"
+  workflow_dispatch:
+
+jobs:
+  build-fabric-client:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Java 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@v4
+
+      - name: Build Fabric mod
+        run: gradle -p staffjobs-ui build --no-daemon
+
+      - name: Upload mod artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: StaffJobsUI-1.20.1-beta
+          path: staffjobs-ui/build/libs/*.jar

@@ -14,6 +14,8 @@ public final class DashboardScreen extends Screen {
     private static volatile String[] selectedProfile = null;
     private static volatile String profileError = null;
     private int selectedPage = 0;
+    private String searchQuery = "";
+    private boolean searchFocused = false;
 
     public DashboardScreen() { super(Text.literal("StaffJobs Dashboard")); }
 
@@ -50,16 +52,22 @@ public final class DashboardScreen extends Screen {
             int panelTop = top + 76;
             int split = contentLeft + 236;
             context.fill(contentLeft, panelTop, right - 18, bottom - 22, PANEL);
-            context.drawTextWithShadow(textRenderer, playersLoaded ? "ONLINE (" + players.size() + ")" : "LOADING...", contentLeft + 14, panelTop + 16, GREEN);
-            if (playersLoaded && players.isEmpty()) {
-                context.drawTextWithShadow(textRenderer, "No players online.", contentLeft + 14, panelTop + 42, MUTED);
+            java.util.List<String> filteredPlayers = getFilteredPlayers();
+            context.drawTextWithShadow(textRenderer, playersLoaded ? "ONLINE (" + filteredPlayers.size() + "/" + players.size() + ")" : "LOADING...", contentLeft + 14, panelTop + 16, GREEN);
+            int searchLeft = contentLeft + 10, searchTop = panelTop + 34;
+            context.fill(searchLeft, searchTop, split - 10, searchTop + 22, searchFocused ? 0xFF26382D : PANEL_ALT);
+            context.drawBorder(searchLeft, searchTop, split - searchLeft - 10, 22, searchFocused ? GREEN : 0xFF34443A);
+            String searchLabel = searchQuery.isEmpty() ? "Search players..." : searchQuery;
+            context.drawTextWithShadow(textRenderer, searchLabel, searchLeft + 7, searchTop + 7, searchQuery.isEmpty() ? MUTED : 0xFFFFFFFF);
+            if (playersLoaded && filteredPlayers.isEmpty()) {
+                context.drawTextWithShadow(textRenderer, searchQuery.isEmpty() ? "No players online." : "No matching players.", contentLeft + 14, panelTop + 78, MUTED);
             } else {
-                for (int i = 0; i < players.size() && i < 14; i++) {
-                    int rowY = panelTop + 42 + i * 22;
+                for (int i = 0; i < filteredPlayers.size() && i < 12; i++) {
+                    int rowY = panelTop + 68 + i * 22;
                     context.fill(contentLeft + 8, rowY - 4, split - 8, rowY + 15, (i % 2 == 0) ? PANEL_ALT : PANEL);
-                    context.drawTextWithShadow(textRenderer, players.get(i), contentLeft + 16, rowY, 0xFFFFFFFF);
+                    context.drawTextWithShadow(textRenderer, filteredPlayers.get(i), contentLeft + 16, rowY, 0xFFFFFFFF);
                 }
-                if (players.size() > 14) context.drawTextWithShadow(textRenderer, "+" + (players.size() - 14) + " more", contentLeft + 14, bottom - 38, MUTED);
+                if (filteredPlayers.size() > 12) context.drawTextWithShadow(textRenderer, "+" + (filteredPlayers.size() - 12) + " more", contentLeft + 14, bottom - 38, MUTED);
             }
             context.fill(split, panelTop + 12, split + 1, bottom - 34, 0xFF34443A);
             context.drawTextWithShadow(textRenderer, "PLAYER PROFILE", split + 16, panelTop + 18, GREEN);
@@ -114,19 +122,59 @@ public final class DashboardScreen extends Screen {
                 int contentLeft = left + 194;
                 int panelTop = top + 76;
                 int split = contentLeft + 236;
+                int searchLeft = contentLeft + 10, searchTop = panelTop + 34;
+                searchFocused = mouseX >= searchLeft && mouseX <= split - 10
+                        && mouseY >= searchTop && mouseY <= searchTop + 22;
+                if (searchFocused) return true;
                 if (mouseX >= contentLeft + 8 && mouseX < split - 8
-                        && mouseY >= panelTop + 38 && mouseY <= panelTop + 42 + Math.min(players.size(), 14) * 22) {
-                    int index = (int) ((mouseY - (panelTop + 38)) / 22);
-                    if (index >= 0 && index < players.size() && index < 14) {
+                        && mouseY >= panelTop + 64 && mouseY <= panelTop + 68 + Math.min(getFilteredPlayers().size(), 12) * 22) {
+                    int index = (int) ((mouseY - (panelTop + 64)) / 22);
+                    java.util.List<String> filtered = getFilteredPlayers();
+                    if (index >= 0 && index < filtered.size() && index < 12) {
                         selectedProfile = null;
                         profileError = "Loading profile...";
-                        StaffJobsUI.requestPlayerProfile(players.get(index));
+                        StaffJobsUI.requestPlayerProfile(filtered.get(index));
                         return true;
                     }
                 }
             }
         }
+        if (selectedPage == 1) searchFocused = false;
         return super.mouseClicked(mouseX, mouseY, button);
+    }
+
+    @Override
+    public boolean charTyped(char chr, int modifiers) {
+        if (selectedPage == 1 && searchFocused && !Character.isISOControl(chr)) {
+            if (searchQuery.length() < 24) searchQuery += chr;
+            return true;
+        }
+        return super.charTyped(chr, modifiers);
+    }
+
+    @Override
+    public boolean keyPressed(int keyCode, int scanCode, int modifiers) {
+        if (selectedPage == 1 && searchFocused) {
+            if (keyCode == 259) {
+                if (!searchQuery.isEmpty()) searchQuery = searchQuery.substring(0, searchQuery.length() - 1);
+                return true;
+            }
+            if (keyCode == 256) {
+                searchFocused = false;
+                return true;
+            }
+        }
+        return super.keyPressed(keyCode, scanCode, modifiers);
+    }
+
+    private java.util.List<String> getFilteredPlayers() {
+        if (searchQuery.isEmpty()) return players;
+        String query = searchQuery.toLowerCase(java.util.Locale.ROOT);
+        java.util.List<String> filtered = new java.util.ArrayList<>();
+        for (String name : players) {
+            if (name.toLowerCase(java.util.Locale.ROOT).contains(query)) filtered.add(name);
+        }
+        return filtered;
     }
 
     private void drawNav(DrawContext context, int x, int y, String label, boolean selected) {

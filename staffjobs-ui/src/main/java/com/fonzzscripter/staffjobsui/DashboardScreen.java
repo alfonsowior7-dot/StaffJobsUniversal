@@ -18,6 +18,8 @@ public final class DashboardScreen extends Screen {
     private boolean searchFocused = false;
     private static volatile java.util.List<String[]> reports = java.util.Collections.emptyList();
     private static volatile String reportError = null;
+    private static volatile String reportActionMessage = null;
+    private int selectedReportIndex = -1;
 
     public DashboardScreen() { super(Text.literal("StaffJobs Dashboard")); }
 
@@ -33,6 +35,7 @@ public final class DashboardScreen extends Screen {
     public static void updatePlayerProfileError(String reason) { selectedProfile = null; profileError = reason; }
     public static void updateReports(java.util.List<String[]> value) { reports = java.util.Collections.unmodifiableList(new java.util.ArrayList<>(value)); reportError = null; }
     public static void updateSectionDenied(String section, String reason) { if ("reports".equals(section)) reportError = reason; }
+    public static void updateReportActionResult(String result, String message) { reportActionMessage = message; if ("OK".equals(result)) { reports = java.util.Collections.emptyList(); reportError = "Action completed. Refresh Report Center to reload."; } else reportError = message; }
 
     @Override
     public void render(DrawContext context, int mouseX, int mouseY, float delta) {
@@ -94,13 +97,27 @@ public final class DashboardScreen extends Screen {
             } else if (reports.isEmpty()) {
                 context.drawTextWithShadow(textRenderer, "No reports loaded, or there are no reports.", contentLeft + 16, panelTop + 24, MUTED);
             } else {
-                for (int i = 0; i < reports.size() && i < 12; i++) {
+                for (int i = 0; i < reports.size() && i < 8; i++) {
                     String[] report = reports.get(i);
                     int rowY = panelTop + 16 + i * 28;
-                    context.fill(contentLeft + 10, rowY, right - 28, rowY + 24, (i % 2 == 0) ? PANEL_ALT : PANEL);
+                    context.fill(contentLeft + 10, rowY, right - 28, rowY + 24,
+                            i == selectedReportIndex ? 0xFF294333 : (i % 2 == 0) ? PANEL_ALT : PANEL);
+                    if (i == selectedReportIndex) context.drawBorder(contentLeft + 10, rowY, right - contentLeft - 38, 24, GREEN);
                     context.drawTextWithShadow(textRenderer, report[1] + " · " + report[3], contentLeft + 18, rowY + 3, GREEN);
                     String message = report[5].length() > 54 ? report[5].substring(0, 54) + "…" : report[5];
                     context.drawTextWithShadow(textRenderer, message, contentLeft + 18, rowY + 14, MUTED);
+                }
+                if (selectedReportIndex >= 0 && selectedReportIndex < reports.size()) {
+                    int actionY = bottom - 54;
+                    int buttonW = 104, buttonGap = 8;
+                    String[] labels = {"ACCEPT", "REJECT", "ASSIGN"};
+                    int[] fills = {0xFF1D5938, 0xFF632D32, 0xFF244A5A};
+                    for (int i = 0; i < labels.length; i++) {
+                        int x = contentLeft + 12 + i * (buttonW + buttonGap);
+                        context.fill(x, actionY, x + buttonW, actionY + 22, fills[i]);
+                        context.drawBorder(x, actionY, buttonW, 22, 0xFF607568);
+                        context.drawTextWithShadow(textRenderer, labels[i], x + 28, actionY + 7, 0xFFFFFFFF);
+                    }
                 }
             }
         } else {
@@ -140,9 +157,36 @@ public final class DashboardScreen extends Screen {
                     } else if (i == 2) {
                         reports = java.util.Collections.emptyList();
                         reportError = null;
+                        selectedReportIndex = -1;
                         StaffJobsUI.requestReports();
                     }
                     return true;
+                }
+            }
+            if (selectedPage == 2) {
+                int contentLeft = left + 194;
+                int panelTop = top + 76;
+                int bottom = Math.min(height - 18, top + 440);
+                for (int i = 0; i < reports.size() && i < 8; i++) {
+                    int rowY = panelTop + 16 + i * 28;
+                    if (mouseX >= contentLeft + 10 && mouseX <= width - 46
+                            && mouseY >= rowY && mouseY <= rowY + 24) {
+                        selectedReportIndex = i;
+                        return true;
+                    }
+                }
+                if (selectedReportIndex >= 0 && selectedReportIndex < reports.size()) {
+                    int actionY = bottom - 54;
+                    int buttonW = 104, buttonGap = 8;
+                    for (int i = 0; i < 3; i++) {
+                        int x = contentLeft + 12 + i * (buttonW + buttonGap);
+                        if (mouseX >= x && mouseX <= x + buttonW && mouseY >= actionY && mouseY <= actionY + 22) {
+                            String action = i == 0 ? "ACCEPT" : i == 1 ? "REJECT" : "ASSIGN";
+                            StaffJobsUI.performReportAction(action, reports.get(selectedReportIndex)[0]);
+                            reportError = "Processing " + action.toLowerCase(java.util.Locale.ROOT) + "...";
+                            return true;
+                        }
+                    }
                 }
             }
             if (selectedPage == 1) {

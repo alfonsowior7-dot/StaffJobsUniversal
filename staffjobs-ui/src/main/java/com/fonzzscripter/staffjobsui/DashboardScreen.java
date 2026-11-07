@@ -117,19 +117,28 @@ public final class DashboardScreen extends Screen {
     @Override
     public void render(DrawContext context, int mouseX, int mouseY, float delta) {
         renderBackground(context, mouseX, mouseY, delta);
-        int left = Math.max(18, (width - 760) / 2), top = Math.max(18, (height - 440) / 2);
-        int right = Math.min(width - 18, left + 760), bottom = Math.min(height - 18, top + 440);
+        int panelWidth = Math.min(1040, width - 24), panelHeight = Math.min(660, height - 24);
+        int left = Math.max(12, (width - panelWidth) / 2), top = Math.max(12, (height - panelHeight) / 2);
+        int right = left + panelWidth, bottom = top + panelHeight;
+        int sidebarWidth = Math.max(164, Math.min(190, panelWidth / 5));
+        int contentLeft = left + sidebarWidth + 22;
         context.fill(left, top, right, bottom, BACKGROUND);
-        context.fill(left, top, left + 172, bottom, PANEL);
+        context.fill(left, top, left + sidebarWidth, bottom, PANEL);
         context.fill(left, top, right, top + 3, GREEN);
-        context.drawTextWithShadow(textRenderer, "STAFFJOBS", left + 18, top + 18, GREEN);
-        context.drawTextWithShadow(textRenderer, "UNIVERSAL 2.0", left + 18, top + 34, MUTED);
-
+        context.fill(left + 18, top + 18, left + 42, top + 42, GREEN);
+        context.drawTextWithShadow(textRenderer, "S", left + 26, top + 25, 0xFF07120B);
+        context.drawTextWithShadow(textRenderer, "STAFFJOBS", left + 52, top + 20, TEXT);
+        context.drawTextWithShadow(textRenderer, "UNIVERSAL 2.0 / BETA", left + 52, top + 35, MUTED);
+        context.fill(contentLeft, top + 54, right - 18, top + 55, 0xFF34443A);
+        context.drawTextWithShadow(textRenderer, "STAFF CONTROL CENTER", contentLeft, top + 22, GREEN);
+        context.drawTextWithShadow(textRenderer, "SERVER CONNECTED  •  LIVE DATA", right - 205, top + 22, MUTED);
         String[] nav = {"OVERVIEW", "PLAYERS", "REPORT CENTER", "STAFF ANALYTICS",
                 "ACTIVITY HISTORY", "DEATH LOGS", "PUNISHMENTS", "SETTINGS"};
-        for (int i = 0; i < nav.length; i++) drawNav(context, left + 14, top + 82 + i * 30, nav[i], i == selectedPage);
+        context.drawTextWithShadow(textRenderer, "WORKSPACE", left + 16, top + 66, MUTED);
+        for (int i = 0; i < nav.length; i++) drawNav(context, left + 16, top + 92 + i * 32, nav[i], i == selectedPage);
+        context.fill(left + 14, bottom - 48, left + sidebarWidth - 14, bottom - 47, 0xFF34443A);
+        context.drawTextWithShadow(textRenderer, "STAFFJOBS UI", left + 16, bottom - 34, MUTED);
 
-        int contentLeft = left + 194;
         if (selectedPage == 1) {
             context.drawTextWithShadow(textRenderer, "Online Players", contentLeft, top + 22, 0xFFFFFFFF);
             context.drawTextWithShadow(textRenderer, "Server-authoritative player list · names only", contentLeft, top + 40, MUTED);
@@ -326,21 +335,33 @@ public final class DashboardScreen extends Screen {
                 }
             }
         } else {
-            context.drawTextWithShadow(textRenderer, "Staff Dashboard", contentLeft, top + 22, 0xFFFFFFFF);
-            context.drawTextWithShadow(textRenderer, "Live server overview · read-only", contentLeft, top + 40, MUTED);
+            context.drawTextWithShadow(textRenderer, "Overview", contentLeft, top + 76, TEXT);
+            context.drawTextWithShadow(textRenderer, "Your server at a glance · live data from Paper", contentLeft, top + 94, MUTED);
             int gap = 12, cardWidth = Math.max(100, (right - contentLeft - 28 - gap * 2) / 3);
-            drawCard(context, contentLeft, top + 76, cardWidth, 72, "ONLINE PLAYERS",
-                    online < 0 ? "…" : online + " / " + maxPlayers, online < 0 ? "Loading server data" : "Connected players");
-            drawCard(context, contentLeft + cardWidth + gap, top + 76, cardWidth, 72,
-                    "OPEN REPORTS", "—", "Report endpoint not connected");
-            drawCard(context, contentLeft + (cardWidth + gap) * 2, top + 76, cardWidth, 72,
-                    "STAFF ONLINE", staffOnline < 0 ? "…" : Integer.toString(staffOnline),
-                    staffOnline < 0 ? "Loading server data" : "Players with staff permission");
-            int lowerTop = top + 164;
-            context.fill(contentLeft, lowerTop, right - 18, bottom - 22, PANEL);
-            context.drawTextWithShadow(textRenderer, "RECENT ACTIVITY", contentLeft + 16, lowerTop + 16, GREEN);
-            context.drawTextWithShadow(textRenderer, "Live overview data received from the Paper server.", contentLeft + 16, lowerTop + 42, MUTED);
-            context.drawTextWithShadow(textRenderer, "Other dashboard sections are being integrated in stages.", contentLeft + 16, lowerTop + 58, MUTED);
+            drawCard(context, contentLeft, top + 112, cardWidth, 82, "ONLINE PLAYERS",
+                    online < 0 ? "…" : online + " / " + maxPlayers, online < 0 ? "Waiting for server data" : "Currently connected");
+            drawCard(context, contentLeft + cardWidth + gap, top + 112, cardWidth, 82,
+                    "OPEN REPORTS", Integer.toString(reports.size()), "Loaded report records");
+            drawCard(context, contentLeft + (cardWidth + gap) * 2, top + 112, cardWidth, 82, "STAFF ONLINE",
+                    staffOnline < 0 ? "…" : Integer.toString(staffOnline), staffOnline < 0 ? "Waiting for server data" : "Staff with permission");
+            int lowerTop = top + 212, mid = contentLeft + (right - contentLeft - 18) * 2 / 3;
+            context.fill(contentLeft, lowerTop, mid - 7, bottom - 22, PANEL);
+            context.fill(mid + 7, lowerTop, right - 18, bottom - 22, PANEL);
+            context.drawTextWithShadow(textRenderer, "QUICK ACCESS", contentLeft + 16, lowerTop + 16, GREEN);
+            String[] quick = {"Manage online players", "Review staff reports", "Inspect staff activity", "View punishment history"};
+            for (int i = 0; i < quick.length; i++) {
+                int y = lowerTop + 43 + i * 27;
+                context.fill(contentLeft + 12, y - 5, mid - 19, y + 17, PANEL_ALT);
+                context.drawTextWithShadow(textRenderer, "›  " + quick[i], contentLeft + 22, y + 2, TEXT);
+            }
+            context.drawTextWithShadow(textRenderer, "SERVER SNAPSHOT", mid + 24, lowerTop + 16, GREEN);
+            context.drawTextWithShadow(textRenderer, "Connection", mid + 24, lowerTop + 48, MUTED);
+            context.drawTextWithShadow(textRenderer, "Paper · StaffJobs protocol", mid + 112, lowerTop + 48, TEXT);
+            context.drawTextWithShadow(textRenderer, "Online capacity", mid + 24, lowerTop + 76, MUTED);
+            context.drawTextWithShadow(textRenderer, online < 0 ? "Loading…" : online + " / " + maxPlayers, mid + 112, lowerTop + 76, TEXT);
+            context.drawTextWithShadow(textRenderer, "Staff presence", mid + 24, lowerTop + 104, MUTED);
+            context.drawTextWithShadow(textRenderer, staffOnline < 0 ? "Loading…" : staffOnline + " online", mid + 112, lowerTop + 104, TEXT);
+            context.drawTextWithShadow(textRenderer, "Use navigation to open a management section.", mid + 24, lowerTop + 145, MUTED);
         }
         super.render(context, mouseX, mouseY, delta);
     }
@@ -352,9 +373,11 @@ public final class DashboardScreen extends Screen {
         int button = click.button();
         if (button == 0) {
             loadPreferences();
-            int left = Math.max(18, (width - 760) / 2);
-            int topForPreferences = Math.max(18, (height - 440) / 2);
-            int contentForPreferences = left + 194;
+            int panelWidthForPreferences = Math.min(1040, width - 24), panelHeightForPreferences = Math.min(660, height - 24);
+            int left = Math.max(12, (width - panelWidthForPreferences) / 2);
+            int topForPreferences = Math.max(12, (height - panelHeightForPreferences) / 2);
+            int sidebarForPreferences = Math.max(164, Math.min(190, panelWidthForPreferences / 5));
+            int contentForPreferences = left + sidebarForPreferences + 22;
             int panelForPreferences = topForPreferences + 76;
             if (selectedPage == 7 && mouseY >= panelForPreferences + 290 && mouseY <= panelForPreferences + 312) {
                 if (mouseX >= contentForPreferences + 16 && mouseX <= contentForPreferences + 236) {
@@ -368,10 +391,13 @@ public final class DashboardScreen extends Screen {
                     return true;
                 }
             }
-            int top = Math.max(18, (height - 440) / 2);
+            int panelWidth = Math.min(1040, width - 24), panelHeight = Math.min(660, height - 24);
+            int top = Math.max(12, (height - panelHeight) / 2);
+            int sidebarWidth = Math.max(164, Math.min(190, panelWidth / 5));
+            int contentOffset = sidebarWidth + 22;
             for (int i = 0; i < 8; i++) {
-                int y = top + 77 + i * 30;
-                if (mouseX >= left + 8 && mouseX <= left + 164 && mouseY >= y && mouseY <= y + 24) {
+                int y = top + 87 + i * 32;
+                if (mouseX >= left + 10 && mouseX <= left + sidebarWidth - 10 && mouseY >= y && mouseY <= y + 24) {
                     selectedPage = i;
                     if (i == 1) {
                         playersLoaded = false;
@@ -533,18 +559,21 @@ public final class DashboardScreen extends Screen {
     }
 
     private void drawNav(DrawContext context, int x, int y, String label, boolean selected) {
+        int navWidth = Math.max(132, Math.min(164, this.width / 6));
         if (selected) {
-            context.fill(x - 6, y - 5, x + 144, y + 16, PANEL_ALT);
-            context.fill(x - 6, y - 5, x - 3, y + 16, GREEN);
-        }
-        context.drawTextWithShadow(textRenderer, label, x, y, selected ? 0xFFFFFFFF : MUTED);
+            context.fill(x - 8, y - 6, x + navWidth, y + 19, 0xFF24372B);
+            context.fill(x - 8, y - 6, x - 5, y + 19, GREEN);
+            context.fill(x + navWidth - 16, y + 4, x + navWidth - 12, y + 8, ACCENT);
+        } else context.fill(x - 1, y + 5, x + 3, y + 9, 0xFF53645A);
+        context.drawTextWithShadow(textRenderer, label, x + 10, y, selected ? TEXT : MUTED);
     }
     private void drawCard(DrawContext context, int x, int y, int w, int h, String heading, String value, String caption) {
         context.fill(x, y, x + w, y + h, PANEL);
-        context.fill(x, y, x + 2, y + h, GREEN);
-        context.drawTextWithShadow(textRenderer, heading, x + 12, y + 10, MUTED);
-        context.drawTextWithShadow(textRenderer, value, x + 12, y + 27, GREEN);
-        context.drawTextWithShadow(textRenderer, caption, x + 12, y + 51, MUTED);
+        context.fill(x, y, x + w, y + 2, 0xFF34443A);
+        context.fill(x, y, x + 3, y + h, GREEN);
+        context.drawTextWithShadow(textRenderer, heading, x + 14, y + 12, MUTED);
+        context.drawTextWithShadow(textRenderer, value, x + 14, y + 31, GREEN);
+        context.drawTextWithShadow(textRenderer, caption, x + 14, y + h - 17, MUTED);
     }
     @Override public boolean shouldPause() { return false; }
 }

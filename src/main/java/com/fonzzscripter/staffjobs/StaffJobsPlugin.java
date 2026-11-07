@@ -434,6 +434,13 @@ public class StaffJobsPlugin extends JavaPlugin implements Listener {
 
     // REPORT SYSTEM
 
+    /** Read-only report snapshot for the permission-checked companion dashboard. */
+    public List<Map<?, ?>> getDashboardReports() {
+        List<Map<?, ?>> snapshot = new ArrayList<>();
+        for (Map<?, ?> report : getReports()) snapshot.add(new LinkedHashMap<>(report));
+        return Collections.unmodifiableList(snapshot);
+    }
+
     private List<Map<?, ?>> getReports() {
         return reportsData.getMapList("reports");
     }

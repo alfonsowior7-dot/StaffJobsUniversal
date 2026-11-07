@@ -49,6 +49,19 @@ public final class StaffJobsUI implements ClientModInitializer {
                 java.util.List<String> names = new java.util.ArrayList<>();
                 for (int i = 0; i < count; i++) names.add(buf.readString(64));
                 client.execute(() -> DashboardScreen.updatePlayers(names));
+            } else if ("REPORTS".equals(status)) {
+                int count = Integer.parseInt(buf.readString(8));
+                if (count < 0 || count > 20) return;
+                java.util.List<String[]> reports = new java.util.ArrayList<>();
+                for (int i = 0; i < count; i++) {
+                    reports.add(new String[]{buf.readString(96), buf.readString(32), buf.readString(64),
+                            buf.readString(24), buf.readString(40), buf.readString(300)});
+                }
+                client.execute(() -> DashboardScreen.updateReports(reports));
+            } else if ("SECTION_DENIED".equals(status)) {
+                String section = buf.readString(32);
+                String reason = buf.readString(128);
+                client.execute(() -> DashboardScreen.updateSectionDenied(section, reason));
             } else if ("PLAYER_PROFILE".equals(status)) {
                 String name = buf.readString(64);
                 String gameMode = buf.readString(32);
@@ -91,6 +104,12 @@ public final class StaffJobsUI implements ClientModInitializer {
         ClientPlayNetworking.send(CHANNEL, payload);
     }
 
+    public static void requestReports() {
+        if (!handshakeAccepted || !ClientPlayNetworking.canSend(CHANNEL)) return;
+        net.minecraft.network.PacketByteBuf payload = net.fabricmc.fabric.api.networking.v1.PacketByteBufs.create();
+        payload.writeString("GET_REPORTS");
+        ClientPlayNetworking.send(CHANNEL, payload);
+    }
     public static void requestPlayers() {
         if (!handshakeAccepted || !ClientPlayNetworking.canSend(CHANNEL)) return;
         net.minecraft.network.PacketByteBuf payload = net.fabricmc.fabric.api.networking.v1.PacketByteBufs.create();

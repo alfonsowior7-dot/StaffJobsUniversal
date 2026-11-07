@@ -19,52 +19,49 @@ public final class StaffJobsUI implements ClientModInitializer {
     @Override
     public void onInitializeClient() {
         openDashboardKey = KeyBindingHelper.registerKeyBinding(new KeyBinding(
-                "key.staffjobsui.open_dashboard",
-                InputUtil.Type.KEYSYM,
-                GLFW.GLFW_KEY_RIGHT_ALT,
-                "category.staffjobsui"
-        ));
+                "key.staffjobsui.open_dashboard", InputUtil.Type.KEYSYM,
+                GLFW.GLFW_KEY_RIGHT_ALT, "category.staffjobsui"));
 
         ClientPlayNetworking.registerGlobalReceiver(CHANNEL, (client, handler, buf, responseSender) -> {
             String status = buf.readString(64);
             if ("WELCOME".equals(status)) {
                 int protocol = Integer.parseInt(buf.readString(16));
                 String pluginVersion = buf.readString(64);
-                String playerId = buf.readString(64);
+                buf.readString(64); // authenticated player UUID
                 client.execute(() -> {
                     handshakeAccepted = protocol == 1;
                     if (client.player != null && handshakeAccepted) {
                         client.setScreen(new DashboardScreen());
-                    }
-                    if (client.player != null) {
-                        client.player.sendMessage(Text.literal(handshakeAccepted
-                                ? "StaffJobs UI connected (plugin " + pluginVersion + ")."
-                                : "StaffJobs UI protocol mismatch."), false);
+                        requestOverview();
+                        client.player.sendMessage(Text.literal("StaffJobs UI connected (plugin " + pluginVersion + ")."), false);
+                    } else if (client.player != null) {
+                        client.player.sendMessage(Text.literal("StaffJobs UI protocol mismatch."), false);
                     }
                 });
+            } else if ("OVERVIEW".equals(status)) {
+                int online = Integer.parseInt(buf.readString(16));
+                int max = Integer.parseInt(buf.readString(16));
+                int staff = Integer.parseInt(buf.readString(16));
+                client.execute(() -> DashboardScreen.updateOverview(online, max, staff));
             } else if ("DENIED".equals(status)) {
                 String reason = buf.readString(256);
                 client.execute(() -> {
                     handshakeAccepted = false;
-                    if (client.player != null) {
-                        client.player.sendMessage(Text.literal("StaffJobs access denied: " + reason), false);
-                    }
+                    if (client.player != null) client.player.sendMessage(Text.literal("StaffJobs access denied: " + reason), false);
                 });
             }
         });
 
         ClientTickEvents.END_CLIENT_TICK.register(client -> {
             while (openDashboardKey.wasPressed()) {
-                if (client.player == null || client.getNetworkHandler() == null) {
-                    continue;
-                }
+                if (client.player == null || client.getNetworkHandler() == null) continue;
                 if (!ClientPlayNetworking.canSend(CHANNEL)) {
                     client.player.sendMessage(Text.literal("This server does not provide StaffJobs UI."), false);
                     continue;
                 }
                 handshakeAccepted = false;
-                net.minecraft.network.PacketByteBuf payload =
-                        net.fabricmc.fabric.api.networking.v1.PacketByteBufs.create();
+                DashboardScreen.clearOverview();
+                net.minecraft.network.PacketByteBuf payload = net.fabricmc.fabric.api.networking.v1.PacketByteBufs.create();
                 payload.writeString("HELLO");
                 ClientPlayNetworking.send(CHANNEL, payload);
                 client.player.sendMessage(Text.literal("Connecting to StaffJobs..."), false);
@@ -72,7 +69,12 @@ public final class StaffJobsUI implements ClientModInitializer {
         });
     }
 
-    public static boolean isHandshakeAccepted() {
-        return handshakeAccepted;
+    private static void requestOverview() {
+        if (!handshakeAccepted || !ClientPlayNetworking.canSend(CHANNEL)) return;
+        net.minecraft.network.PacketByteBuf payload = net.fabricmc.fabric.api.networking.v1.PacketByteBufs.create();
+        payload.writeString("GET_OVERVIEW");
+        ClientPlayNetworking.send(CHANNEL, payload);
     }
+
+    public static boolean isHandshakeAccepted() { return handshakeAccepted; }
 }

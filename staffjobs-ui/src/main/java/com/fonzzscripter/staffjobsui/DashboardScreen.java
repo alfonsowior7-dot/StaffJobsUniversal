@@ -1,6 +1,9 @@
 package com.fonzzscripter.staffjobsui;
 
 import net.minecraft.client.gui.DrawContext;
+import net.minecraft.client.gui.Click;
+import net.minecraft.client.input.CharInput;
+import net.minecraft.client.input.KeyInput;
 import net.minecraft.client.gui.screen.Screen;
 import net.minecraft.text.Text;
 
@@ -137,7 +140,7 @@ public final class DashboardScreen extends Screen {
             context.drawTextWithShadow(textRenderer, playersLoaded ? "ONLINE (" + filteredPlayers.size() + "/" + players.size() + ")" : "LOADING...", contentLeft + 14, panelTop + 16, GREEN);
             int searchLeft = contentLeft + 10, searchTop = panelTop + 34;
             context.fill(searchLeft, searchTop, split - 10, searchTop + 22, searchFocused ? 0xFF26382D : PANEL_ALT);
-            context.drawBorder(searchLeft, searchTop, split - searchLeft - 10, 22, searchFocused ? GREEN : 0xFF34443A);
+            drawOutline(context, searchLeft, searchTop, split - searchLeft - 10, 22, searchFocused ? GREEN : 0xFF34443A);
             String searchLabel = searchQuery.isEmpty() ? "Search players..." : searchQuery;
             context.drawTextWithShadow(textRenderer, searchLabel, searchLeft + 7, searchTop + 7, searchQuery.isEmpty() ? MUTED : 0xFFFFFFFF);
             if (playersLoaded && filteredPlayers.isEmpty()) {
@@ -176,7 +179,7 @@ public final class DashboardScreen extends Screen {
                     int rowY = panelTop + 16 + i * 28;
                     context.fill(contentLeft + 10, rowY, right - 28, rowY + 24,
                             i == selectedReportIndex ? 0xFF294333 : (i % 2 == 0) ? PANEL_ALT : PANEL);
-                    if (i == selectedReportIndex) context.drawBorder(contentLeft + 10, rowY, right - contentLeft - 38, 24, GREEN);
+                    if (i == selectedReportIndex) drawOutline(context, contentLeft + 10, rowY, right - contentLeft - 38, 24, GREEN);
                     context.drawTextWithShadow(textRenderer, report[1] + " · " + report[3], contentLeft + 18, rowY + 3, GREEN);
                     String message = report[5].length() > 54 ? report[5].substring(0, 54) + "…" : report[5];
                     context.drawTextWithShadow(textRenderer, message, contentLeft + 18, rowY + 14, MUTED);
@@ -189,7 +192,7 @@ public final class DashboardScreen extends Screen {
                     for (int i = 0; i < labels.length; i++) {
                         int x = contentLeft + 12 + i * (buttonW + buttonGap);
                         context.fill(x, actionY, x + buttonW, actionY + 22, fills[i]);
-                        context.drawBorder(x, actionY, buttonW, 22, 0xFF607568);
+                        drawOutline(context, x, actionY, buttonW, 22, 0xFF607568);
                         context.drawTextWithShadow(textRenderer, labels[i], x + 28, actionY + 7, 0xFFFFFFFF);
                     }
                 }
@@ -343,7 +346,10 @@ public final class DashboardScreen extends Screen {
     }
 
     @Override
-    public boolean mouseClicked(double mouseX, double mouseY, int button) {
+    public boolean mouseClicked(Click click, boolean doubled) {
+        double mouseX = click.x();
+        double mouseY = click.y();
+        int button = click.button();
         if (button == 0) {
             loadPreferences();
             int left = Math.max(18, (width - 760) / 2);
@@ -457,16 +463,19 @@ public final class DashboardScreen extends Screen {
     }
 
     @Override
-    public boolean charTyped(char chr, int modifiers) {
-        if (selectedPage == 1 && searchFocused && !Character.isISOControl(chr)) {
-            if (searchQuery.length() < 24) searchQuery += chr;
+    public boolean charTyped(CharInput input) {
+        int codepoint = input.codepoint();
+        if (selectedPage == 1 && searchFocused && !Character.isISOControl(codepoint)) {
+            String chr = input.codepointAsString();
+            if (searchQuery.length() + chr.length() <= 24) searchQuery += chr;
             return true;
         }
-        return super.charTyped(chr, modifiers);
+        return super.charTyped(input);
     }
 
     @Override
-    public boolean keyPressed(int keyCode, int scanCode, int modifiers) {
+    public boolean keyPressed(KeyInput input) {
+        int keyCode = input.key();
         if (selectedPage == 1 && searchFocused) {
             if (keyCode == 259) {
                 if (!searchQuery.isEmpty()) searchQuery = searchQuery.substring(0, searchQuery.length() - 1);
@@ -477,7 +486,7 @@ public final class DashboardScreen extends Screen {
                 return true;
             }
         }
-        return super.keyPressed(keyCode, scanCode, modifiers);
+        return super.keyPressed(input);
     }
 
     private java.util.List<String> getFilteredPlayers() {
@@ -505,10 +514,19 @@ public final class DashboardScreen extends Screen {
         return remainder + "m";
     }
 
+
+    private static void drawOutline(DrawContext context, int x, int y, int width, int height, int color) {
+        if (width <= 0 || height <= 0) return;
+        context.fill(x, y, x + width, y + 1, color);
+        context.fill(x, y + height - 1, x + width, y + height, color);
+        context.fill(x, y, x + 1, y + height, color);
+        context.fill(x + width - 1, y, x + width, y + height, color);
+    }
+
     private void drawPreference(DrawContext context, int x, int y, String label, boolean enabled) {
         int width = 218;
         context.fill(x, y, x + width, y + 22, PANEL_ALT);
-        context.drawBorder(x, y, width, 22, enabled ? GREEN : 0xFF34443A);
+        drawOutline(context, x, y, width, 22, enabled ? GREEN : 0xFF34443A);
         context.drawTextWithShadow(textRenderer, label, x + 8, y + 7, TEXT);
         context.drawTextWithShadow(textRenderer, enabled ? "ON" : "OFF", x + width - 34, y + 7,
                 enabled ? GREEN : MUTED);

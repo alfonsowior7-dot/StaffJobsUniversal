@@ -6,8 +6,10 @@ import net.minecraft.text.Text;
 
 /** Black-green dashboard with live read-only server overview cards. */
 public final class DashboardScreen extends Screen {
-    private static final int BACKGROUND = 0xF0101412, PANEL = 0xFF18211C,
-            PANEL_ALT = 0xFF202B24, GREEN = 0xFF00E676, MUTED = 0xFF9AA79F;
+    private static volatile int BACKGROUND = 0xF0101412, PANEL = 0xFF18211C,
+            PANEL_ALT = 0xFF202B24, GREEN = 0xFF00E676, MUTED = 0xFF9AA79F, TEXT = 0xFFFFFFFF;
+    private static volatile String[] serverTheme = null;
+    private static volatile String settingsError = null;
     private static volatile int online = -1, maxPlayers = -1, staffOnline = -1;
     private static volatile java.util.List<String> players = java.util.Collections.emptyList();
     private static volatile boolean playersLoaded;
@@ -46,12 +48,29 @@ public final class DashboardScreen extends Screen {
     public static void updateActivity(java.util.List<String> value) { activity = java.util.Collections.unmodifiableList(new java.util.ArrayList<>(value)); activityError = null; }
     public static void updateDeaths(java.util.List<String[]> value) { deaths = java.util.Collections.unmodifiableList(new java.util.ArrayList<>(value)); deathError = null; }
     public static void updatePunishments(java.util.List<String[]> value) { punishments = java.util.Collections.unmodifiableList(new java.util.ArrayList<>(value)); punishmentError = null; }
+    public static void updateSettings(String[] theme) {
+        if (theme == null || theme.length != 7) return;
+        serverTheme = theme.clone();
+        BACKGROUND = withAlpha(parseColor(theme[3], 0x00101412), 0xF0);
+        GREEN = parseColor(theme[1], 0xFF00E676);
+        TEXT = parseColor(theme[4], 0xFFFFFFFF);
+        MUTED = parseColor(theme[5], 0xFF9AA79F);
+        settingsError = null;
+    }
+    private static int parseColor(String value, int fallback) {
+        try {
+            String hex = value.startsWith("#") ? value.substring(1) : value;
+            if (hex.length() != 6) return fallback;
+            return 0xFF000000 | Integer.parseInt(hex, 16);
+        } catch (RuntimeException exception) { return fallback; }
+    }
+    private static int withAlpha(int color, int alpha) { return (color & 0x00FFFFFF) | (alpha << 24); }
     public static void updateAnalytics(int online, int afk, int tracked, java.util.List<String[]> entries) {
         analyticsOnline = online; analyticsAfk = afk; analyticsTracked = tracked;
         analyticsStaff = java.util.Collections.unmodifiableList(new java.util.ArrayList<>(entries));
         analyticsError = null;
     }
-    public static void updateSectionDenied(String section, String reason) { if ("reports".equals(section)) reportError = reason; else if ("activity".equals(section)) activityError = reason; else if ("deaths".equals(section)) deathError = reason; else if ("punishments".equals(section)) punishmentError = reason; else if ("analytics".equals(section)) analyticsError = reason; }
+    public static void updateSectionDenied(String section, String reason) { if ("reports".equals(section)) reportError = reason; else if ("activity".equals(section)) activityError = reason; else if ("deaths".equals(section)) deathError = reason; else if ("punishments".equals(section)) punishmentError = reason; else if ("analytics".equals(section)) analyticsError = reason; else if ("settings".equals(section)) settingsError = reason; }
     public static void updateReportActionResult(String result, String message) { reportActionMessage = message; if ("OK".equals(result)) { reports = java.util.Collections.emptyList(); reportError = "Action completed. Refresh Report Center to reload."; } else reportError = message; }
 
     @Override
@@ -168,6 +187,27 @@ public final class DashboardScreen extends Screen {
                 }
                 context.drawTextWithShadow(textRenderer, "Session history / cumulative playtime is not recorded yet.", contentLeft + 16, bottom - 38, MUTED);
             }
+        } else if (selectedPage == 7) {
+            context.drawTextWithShadow(textRenderer, "Dashboard Settings", contentLeft, top + 22, TEXT);
+            context.drawTextWithShadow(textRenderer, "Server-managed theme configuration · permission: staffjobs.settings", contentLeft, top + 40, MUTED);
+            int panelTop = top + 76;
+            context.fill(contentLeft, panelTop, right - 18, bottom - 22, PANEL);
+            if (settingsError != null) {
+                context.drawTextWithShadow(textRenderer, settingsError, contentLeft + 16, panelTop + 24, 0xFFFF7777);
+            } else if (serverTheme == null) {
+                context.drawTextWithShadow(textRenderer, "Loading server theme settings...", contentLeft + 16, panelTop + 24, MUTED);
+            } else {
+                context.drawTextWithShadow(textRenderer, "ACTIVE THEME", contentLeft + 16, panelTop + 18, GREEN);
+                context.drawTextWithShadow(textRenderer, "Preset: " + serverTheme[0], contentLeft + 16, panelTop + 48, TEXT);
+                context.drawTextWithShadow(textRenderer, "Primary: " + serverTheme[1], contentLeft + 16, panelTop + 74, MUTED);
+                context.drawTextWithShadow(textRenderer, "Secondary: " + serverTheme[2], contentLeft + 16, panelTop + 96, MUTED);
+                context.drawTextWithShadow(textRenderer, "Background: " + serverTheme[3], contentLeft + 16, panelTop + 118, MUTED);
+                context.drawTextWithShadow(textRenderer, "Text: " + serverTheme[4], contentLeft + 16, panelTop + 140, MUTED);
+                context.drawTextWithShadow(textRenderer, "Accent: " + serverTheme[5], contentLeft + 16, panelTop + 162, MUTED);
+                context.drawTextWithShadow(textRenderer, "Gradient: " + serverTheme[6], contentLeft + 16, panelTop + 184, MUTED);
+                context.drawTextWithShadow(textRenderer, "To change the shared theme, edit interface.theme in the server config.yml.", contentLeft + 16, panelTop + 224, TEXT);
+                context.drawTextWithShadow(textRenderer, "Theme changes are applied when clients reconnect / reopen the dashboard.", contentLeft + 16, panelTop + 246, MUTED);
+            }
         } else if (selectedPage == 6) {
             context.drawTextWithShadow(textRenderer, "Punishment History", contentLeft, top + 22, 0xFFFFFFFF);
             context.drawTextWithShadow(textRenderer, "Latest records · read-only · permission: staffjobs.punishments", contentLeft, top + 40, MUTED);
@@ -260,6 +300,10 @@ public final class DashboardScreen extends Screen {
                         selectedProfile = null;
                         profileError = null;
                         StaffJobsUI.requestPlayers();
+                    } else if (i == 7) {
+                        serverTheme = null;
+                        settingsError = null;
+                        StaffJobsUI.requestSettings();
                     } else if (i == 3) {
                         analyticsOnline = -1;
                         analyticsError = null;

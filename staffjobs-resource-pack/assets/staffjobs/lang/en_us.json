@@ -1,0 +1,23 @@
+{
+  "pack.name": "StaffJobs UI - Black & Green",
+  "pack.description": "Optional black-and-green companion pack for StaffJobs 2.0.",
+  "staffjobs.ui.title": "StaffJobs Dashboard",
+  "staffjobs.ui.overview": "Overview",
+  "staffjobs.ui.players": "Players",
+  "staffjobs.ui.reports": "Report Center",
+  "staffjobs.ui.analytics": "Staff Analytics",
+  "staffjobs.ui.activity": "Activity History",
+  "staffjobs.ui.deathlogs": "Death Logs",
+  "staffjobs.ui.punishments": "Punishment History",
+  "staffjobs.ui.settings": "Settings",
+  "staffjobs.ui.online": "Online",
+  "staffjobs.ui.staff_online": "Staff Online",
+  "staffjobs.ui.afk": "AFK",
+  "staffjobs.ui.tracked_staff": "Tracked Staff",
+  "staffjobs.ui.accept": "Accept",
+  "staffjobs.ui.reject": "Reject",
+  "staffjobs.ui.assign": "Assign",
+  "staffjobs.ui.no_permission": "You do not have permission to view this section.",
+  "staffjobs.ui.connecting": "Connecting to StaffJobs server...",
+  "staffjobs.ui.disconnected": "StaffJobs server connection unavailable."
+}

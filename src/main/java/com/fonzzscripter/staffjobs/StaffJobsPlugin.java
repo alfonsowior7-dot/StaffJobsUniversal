@@ -545,7 +545,7 @@ public class StaffJobsPlugin extends JavaPlugin implements Listener {
         inventory.setItem(15, createItem(Material.LIME_WOOL, "§aACCEPT REPORT", "§7Accept and archive this report."));
         inventory.setItem(16, createItem(Material.RED_WOOL, "§cREJECT REPORT", "§7Reject and archive this report."));
         inventory.setItem(17, createItem(Material.NAME_TAG, "§bASSIGN TO ME", "§7Assign this report to you."));
-        inventory.setItem(11, createItem(Material.ARROW, "§eBack to report list"));
+        inventory.setItem(11, createItem(Material.BARRIER, "§eBack to report list"));
         player.openInventory(inventory);
     }
 
@@ -912,7 +912,7 @@ public class StaffJobsPlugin extends JavaPlugin implements Listener {
             inventory.setItem(slot, createItem(Material.PLAYER_HEAD, "§e" + target.getName(), "§7Click to manage this player."));
         }
         inventory.setItem(45, createItem(Material.ARROW, "§ePrevious Page"));
-        inventory.setItem(49, createItem(Material.ARROW, "§eBack", "§7Page " + (page + 1) + "/" + pages));
+        inventory.setItem(49, createItem(Material.BARRIER, "§eBack", "§7Page " + (page + 1) + "/" + pages));
         inventory.setItem(53, createItem(Material.ARROW, "§eNext Page"));
         playerSlotTargets.put(player.getUniqueId(), slotTargets);
         player.openInventory(inventory);
@@ -929,7 +929,7 @@ public class StaffJobsPlugin extends JavaPlugin implements Listener {
         ));
         inventory.setItem(16, createItem(Material.CLOCK, "§6Temporary Ban", "§7Enter a reason and duration in chat.", "§7Example duration: 30m, 2h, 7d."));
         inventory.setItem(20, createItem(Material.CHEST, "§bView Inventory (InvSee)", "§7View and manage this player's inventory.", "§7Requires: staffjobs.invsee"));
-        inventory.setItem(22, createItem(Material.ARROW, "§eBack"));
+        inventory.setItem(22, createItem(Material.BARRIER, "§eBack"));
         staff.openInventory(inventory);
     }
 
@@ -1501,7 +1501,7 @@ public class StaffJobsPlugin extends JavaPlugin implements Listener {
                     "§eClick to select and restore."));
         }
         inv.setItem(45, createItem(Material.ARROW, "§ePrevious"));
-        inv.setItem(49, createItem(Material.ARROW, "§eBack"));
+        inv.setItem(49, createItem(Material.BARRIER, "§eBack"));
         inv.setItem(53, createItem(Material.ARROW, "§eNext"));
         deathSlotIds.put(staff.getUniqueId(), slotIds);
         staff.openInventory(inv);
@@ -1536,7 +1536,7 @@ public class StaffJobsPlugin extends JavaPlugin implements Listener {
                         + deathsData.getInt(base + ".x") + ", " + deathsData.getInt(base + ".y") + ", " + deathsData.getInt(base + ".z"),
                 "§7Level: " + deathsData.getInt(base + ".level")));
         inv.setItem(48, createItem(Material.LIME_WOOL, "§aRESTORE INVENTORY", "§7Restore the saved items to the player."));
-        inv.setItem(50, createItem(Material.ARROW, "§eBack"));
+        inv.setItem(50, createItem(Material.BARRIER, "§eBack"));
         staff.openInventory(inv);
     }
 
@@ -1743,7 +1743,7 @@ public class StaffJobsPlugin extends JavaPlugin implements Listener {
             inv.setItem(i, createItem(Material.PLAYER_HEAD, "§a" + member.getName(), "§7Status: " + status, "§7Rank: §f" + getRank(member), "§7Last online: §f" + lastText));
         }
         inv.setItem(48, createItem(Material.CLOCK, "§eRefresh", "§7Update the online staff list."));
-        inv.setItem(49, createItem(Material.ARROW, "§eBack"));
+        inv.setItem(49, createItem(Material.BARRIER, "§eBack"));
         inv.setItem(53, createItem(Material.PAPER, "§bOnline staff: §f" + staff.size()));
         viewer.openInventory(inv);
     }
@@ -1755,7 +1755,7 @@ public class StaffJobsPlugin extends JavaPlugin implements Listener {
         Inventory inv = Bukkit.createInventory(null, 27, NOTIFICATION_SETTINGS);
         inv.setItem(11, createItem(chat ? Material.LIME_DYE : Material.GRAY_DYE, "§eChat notifications", chat ? "§aEnabled" : "§cDisabled", "§7Click to toggle."));
         inv.setItem(15, createItem(sound ? Material.NOTE_BLOCK : Material.GRAY_DYE, "§eNotification sound", sound ? "§aEnabled" : "§cDisabled", "§7Click to toggle."));
-        inv.setItem(22, createItem(Material.ARROW, "§eBack"));
+        inv.setItem(22, createItem(Material.BARRIER, "§eBack"));
         player.openInventory(inv);
     }
 
@@ -1796,7 +1796,7 @@ public class StaffJobsPlugin extends JavaPlugin implements Listener {
         }
         inv.setItem(45, createItem(Material.ARROW, "§ePrevious Page"));
         inv.setItem(48, createItem(Material.CLOCK, "§bRefresh"));
-        inv.setItem(49, createItem(Material.ARROW, "§eBack", "§7Page " + (page + 1) + "/" + pages));
+        inv.setItem(49, createItem(Material.BARRIER, "§eBack", "§7Page " + (page + 1) + "/" + pages));
         inv.setItem(53, createItem(Material.ARROW, "§eNext Page"));
         staff.openInventory(inv);
     }
@@ -1826,7 +1826,7 @@ public class StaffJobsPlugin extends JavaPlugin implements Listener {
         }
         inv.setItem(45, createItem(Material.ARROW, "§ePrevious Page"));
         inv.setItem(48, createItem(Material.CLOCK, "§bRefresh"));
-        inv.setItem(49, createItem(Material.ARROW, "§eBack to staff list"));
+        inv.setItem(49, createItem(Material.BARRIER, "§eBack to staff list"));
         inv.setItem(53, createItem(Material.ARROW, "§eNext Page"));
         viewer.openInventory(inv);
     }

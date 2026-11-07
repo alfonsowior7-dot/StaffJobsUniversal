@@ -1,6 +1,6 @@
 # StaffJobs UI Plugin Message Protocol
 
-Status: protocol version 1; overview, player views, reports, activity, and read-only death metadata endpoints implemented.
+Status: protocol version 1; overview, player views, reports, activity, staff analytics, and read-only history endpoints implemented.
 
 ## Transport
 - Channel: `staffjobs:ui`
@@ -26,6 +26,10 @@ Client sends `GET_OVERVIEW` after WELCOME. Server rechecks the session and `staf
 - online staff count (players with `staffjobs.use`)
 
 Requests are rate-limited per player. Malformed, oversized, or trailing payload data is rejected. No IP addresses or other private player details are transmitted.
+
+## Implemented staff analytics endpoint
+
+Client sends `GET_ANALYTICS`. Server checks `staffjobs.analytics` and returns live online staff count, AFK staff count, tracked staff count, and up to 10 roster entries (name, ONLINE/AFK/OFFLINE status, last-online timestamp). The roster only counts records explicitly marked as staff. Historical session duration and cumulative playtime are not currently tracked. Unauthorized clients receive `SECTION_DENIED` for the analytics section.
 
 ## Implemented activity endpoint
 
@@ -67,7 +71,7 @@ Client sends `GET_DEATH_LOGS`. Server checks `staffjobs.deathlogs` and returns u
 ## Planned, not yet implemented
 - Server-side player search (current search filters the received online-name list locally); richer profile fields
 - Report action result refresh/pagination and richer report detail view
-- Staff analytics page
+- Staff session duration / cumulative playtime tracking
 - Death logs
 - Punishment history/actions
 - Settings read/update

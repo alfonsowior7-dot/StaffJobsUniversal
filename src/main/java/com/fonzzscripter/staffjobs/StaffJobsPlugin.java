@@ -627,8 +627,9 @@ public class StaffJobsPlugin extends JavaPlugin implements Listener {
             Map<String, Object> updated = new LinkedHashMap<>();
             for (Map.Entry<?, ?> entry : raw.entrySet()) updated.put(String.valueOf(entry.getKey()), entry.getValue());
             String assigned = reportValue(raw, "assigned-staff", "Unassigned");
-            if (!assigned.equals("Unassigned") && !assigned.equalsIgnoreCase(staff.getName())) {
-                staff.sendMessage(PREFIX + ChatColor.RED + "This report is already assigned to " + assigned + ".");
+            if (!assigned.equalsIgnoreCase("Unassigned")) {
+                staff.sendMessage(PREFIX + ChatColor.RED
+                        + "This report has already been assigned to admin " + assigned + ".");
                 return;
             }
             updated.put("assigned-staff", staff.getName());

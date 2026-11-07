@@ -9,7 +9,7 @@ import net.minecraft.util.Identifier;
 public record StaffJobsPayload(byte[] data) implements CustomPayload {
     public static final Id<StaffJobsPayload> ID = new Id<>(Identifier.of("staffjobs", "ui"));
     public static final PacketCodec<RegistryByteBuf, StaffJobsPayload> CODEC = PacketCodec.of(
-            (buf, payload) -> buf.writeBytes(payload.data()),
+            (payload, buf) -> buf.writeBytes(payload.data()),
             buf -> {
                 byte[] bytes = new byte[buf.readableBytes()];
                 buf.readBytes(bytes);

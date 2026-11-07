@@ -29,7 +29,7 @@ The Fabric companion mod scaffold now lives in `staffjobs-ui/` in this repositor
 - [x] Add Report Center queue (latest 20 reports; `staffjobs.reports` checked server-side).
 - [x] Add server-validated Accept, Reject, and Assign report actions using existing audited handlers.
 - [x] Add read-only Activity History page (latest 10 audit entries; `staffjobs.activity` checked server-side).
-- [ ] Add Death Logs and Punishments.
+- [x] Add read-only Death Logs metadata view (latest 20; `staffjobs.deathlogs` checked server-side; inventory snapshots stay private).\n- [ ] Add Punishments history and permission-checked actions.
 - [ ] Add analytics and settings screens.
 - [ ] Add optional resource-pack assets.
 - [ ] Build and test each supported Minecraft version family separately.

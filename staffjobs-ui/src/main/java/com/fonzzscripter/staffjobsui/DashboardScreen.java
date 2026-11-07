@@ -20,6 +20,8 @@ public final class DashboardScreen extends Screen {
     private static volatile String reportError = null;
     private static volatile String reportActionMessage = null;
     private int selectedReportIndex = -1;
+    private static volatile java.util.List<String> activity = java.util.Collections.emptyList();
+    private static volatile String activityError = null;
 
     public DashboardScreen() { super(Text.literal("StaffJobs Dashboard")); }
 
@@ -34,7 +36,8 @@ public final class DashboardScreen extends Screen {
     }
     public static void updatePlayerProfileError(String reason) { selectedProfile = null; profileError = reason; }
     public static void updateReports(java.util.List<String[]> value) { reports = java.util.Collections.unmodifiableList(new java.util.ArrayList<>(value)); reportError = null; }
-    public static void updateSectionDenied(String section, String reason) { if ("reports".equals(section)) reportError = reason; }
+    public static void updateActivity(java.util.List<String> value) { activity = java.util.Collections.unmodifiableList(new java.util.ArrayList<>(value)); activityError = null; }
+    public static void updateSectionDenied(String section, String reason) { if ("reports".equals(section)) reportError = reason; else if ("activity".equals(section)) activityError = reason; }
     public static void updateReportActionResult(String result, String message) { reportActionMessage = message; if ("OK".equals(result)) { reports = java.util.Collections.emptyList(); reportError = "Action completed. Refresh Report Center to reload."; } else reportError = message; }
 
     @Override
@@ -120,6 +123,24 @@ public final class DashboardScreen extends Screen {
                     }
                 }
             }
+        } else if (selectedPage == 4) {
+            context.drawTextWithShadow(textRenderer, "Activity History", contentLeft, top + 22, 0xFFFFFFFF);
+            context.drawTextWithShadow(textRenderer, "Latest staff actions · read-only audit entries", contentLeft, top + 40, MUTED);
+            int panelTop = top + 76;
+            context.fill(contentLeft, panelTop, right - 18, bottom - 22, PANEL);
+            if (activityError != null) {
+                context.drawTextWithShadow(textRenderer, activityError, contentLeft + 16, panelTop + 24, 0xFFFF7777);
+            } else if (activity.isEmpty()) {
+                context.drawTextWithShadow(textRenderer, "No activity entries available.", contentLeft + 16, panelTop + 24, MUTED);
+            } else {
+                for (int i = 0; i < activity.size() && i < 10; i++) {
+                    int rowY = panelTop + 12 + i * 29;
+                    context.fill(contentLeft + 10, rowY, right - 28, rowY + 25, (i % 2 == 0) ? PANEL_ALT : PANEL);
+                    String entry = activity.get(i);
+                    if (entry.length() > 104) entry = entry.substring(0, 104) + "…";
+                    context.drawTextWithShadow(textRenderer, entry, contentLeft + 17, rowY + 9, 0xFFFFFFFF);
+                }
+            }
         } else {
             context.drawTextWithShadow(textRenderer, "Staff Dashboard", contentLeft, top + 22, 0xFFFFFFFF);
             context.drawTextWithShadow(textRenderer, "Live server overview · read-only", contentLeft, top + 40, MUTED);
@@ -159,6 +180,11 @@ public final class DashboardScreen extends Screen {
                         reportError = null;
                         selectedReportIndex = -1;
                         StaffJobsUI.requestReports();
+                    }
+                    else if (i == 4) {
+                        activity = java.util.Collections.emptyList();
+                        activityError = null;
+                        StaffJobsUI.requestActivity();
                     }
                     return true;
                 }

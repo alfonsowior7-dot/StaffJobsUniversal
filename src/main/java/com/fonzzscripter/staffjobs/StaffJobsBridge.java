@@ -41,9 +41,12 @@ public final class StaffJobsBridge implements PluginMessageListener {
         if (!CHANNEL.equals(channel) || message == null || message.length == 0 || message.length > 1024) return;
         String request;
         String targetName = null;
+        String reportAction = null;
+        String reportId = null;
         try (DataInputStream input = new DataInputStream(new ByteArrayInputStream(message))) {
             request = readString(input);
             if ("GET_PLAYER_PROFILE".equals(request)) targetName = readString(input);
+            if ("REPORT_ACTION".equals(request)) { reportAction = readString(input); reportId = readString(input); }
             if (input.available() != 0) throw new IOException("Unexpected trailing payload");
         } catch (IOException exception) {
             plugin.getLogger().fine("Ignored malformed StaffJobs UI message from " + player.getName());
@@ -111,6 +114,21 @@ public final class StaffJobsBridge implements PluginMessageListener {
             return;
         }
 
+        if ("REPORT_ACTION".equals(request)) {
+            if (!player.hasPermission("staffjobs.reports")) {
+                sendResponse(player, "REPORT_ACTION_RESULT", "DENIED", "Missing permission: staffjobs.reports");
+                return;
+            }
+            if (!(plugin instanceof StaffJobsPlugin) || reportAction == null || reportId == null
+                    || reportAction.length() > 12 || reportId.length() > 80) {
+                sendResponse(player, "REPORT_ACTION_RESULT", "INVALID", "Invalid report action.");
+                return;
+            }
+            boolean success = ((StaffJobsPlugin) plugin).performDashboardReportAction(player, reportAction, reportId);
+            sendResponse(player, "REPORT_ACTION_RESULT", success ? "OK" : "FAILED",
+                    success ? "Report action processed." : "Report not found or action rejected.");
+            return;
+        }
         if ("GET_REPORTS".equals(request)) {
             if (!player.hasPermission("staffjobs.reports")) {
                 sendResponse(player, "SECTION_DENIED", "reports", "Missing permission: staffjobs.reports");

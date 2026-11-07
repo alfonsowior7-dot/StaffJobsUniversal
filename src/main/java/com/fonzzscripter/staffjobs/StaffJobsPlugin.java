@@ -448,6 +448,48 @@ public class StaffJobsPlugin extends JavaPlugin implements Listener {
         else return false;
         return true;
     }
+    /** Returns staff roster and live AFK metrics; historical playtime is not tracked. */
+    public List<String[]> getDashboardAnalytics() {
+        Map<UUID, Player> onlineStaff = new HashMap<>();
+        int afkCount = 0;
+        for (Player online : Bukkit.getOnlinePlayers()) {
+            if (!online.hasPermission("staffjobs.use")) continue;
+            onlineStaff.put(online.getUniqueId(), online);
+            if (afkPlayers.contains(online.getUniqueId())) afkCount++;
+        }
+        List<String[]> rows = new ArrayList<>();
+        if (staffStatusData != null && staffStatusData.getConfigurationSection("staff") != null) {
+            for (String key : staffStatusData.getConfigurationSection("staff").getKeys(false)) {
+                if (rows.size() >= 10) break;
+                if (!staffStatusData.getBoolean("staff." + key + ".staff", false)) continue;
+                try {
+                    UUID uuid = UUID.fromString(key);
+                    Player online = onlineStaff.get(uuid);
+                    String name = online != null ? online.getName()
+                            : staffStatusData.getString("staff." + key + ".name", "Unknown");
+                    String status = online == null ? "OFFLINE" : afkPlayers.contains(uuid) ? "AFK" : "ONLINE";
+                    long lastOnline = online != null ? System.currentTimeMillis()
+                            : staffStatusData.getLong("staff." + key + ".last-online", 0L);
+                    rows.add(new String[]{name, status, Long.toString(lastOnline)});
+                } catch (IllegalArgumentException ignored) {
+                    getLogger().warning("Skipped invalid staff status UUID: " + key);
+                }
+            }
+        }
+        rows.sort((a, b) -> {
+            int statusOrder = Integer.compare(
+                    "ONLINE".equals(a[1]) ? 0 : "AFK".equals(a[1]) ? 1 : 2,
+                    "ONLINE".equals(b[1]) ? 0 : "AFK".equals(b[1]) ? 1 : 2);
+            return statusOrder != 0 ? statusOrder : a[0].compareToIgnoreCase(b[0]);
+        });
+        int trackedStaff = rows.size();
+        List<String[]> result = new ArrayList<>();
+        result.add(new String[]{Integer.toString(onlineStaff.size()), Integer.toString(afkCount),
+                Integer.toString(trackedStaff)});
+        result.addAll(rows);
+        return Collections.unmodifiableList(result);
+    }
+
     /** Returns a bounded snapshot of punishment history; no mutation is exposed. */
     public List<String[]> getDashboardPunishments() {
         if (punishmentsData == null || punishmentsData.getConfigurationSection("players") == null) return Collections.emptyList();
@@ -901,6 +943,7 @@ public class StaffJobsPlugin extends JavaPlugin implements Listener {
         afkPlayers.remove(player.getUniqueId());
         String staffPath = "staff." + player.getUniqueId();
         staffStatusData.set(staffPath + ".name", player.getName());
+        staffStatusData.set(staffPath + ".staff", player.hasPermission("staffjobs.use"));
         saveStaffStatus();
         if (frozen.contains(player.getUniqueId())) {
             player.sendMessage(PREFIX + ChatColor.RED + "You are still FROZEN by a staff member.");
@@ -921,6 +964,7 @@ public class StaffJobsPlugin extends JavaPlugin implements Listener {
         if (player.hasPermission("staffjobs.use")) {
             String path = "staff." + player.getUniqueId();
             staffStatusData.set(path + ".name", player.getName());
+            staffStatusData.set(path + ".staff", true);
             staffStatusData.set(path + ".last-online", System.currentTimeMillis());
             saveStaffStatus();
         }

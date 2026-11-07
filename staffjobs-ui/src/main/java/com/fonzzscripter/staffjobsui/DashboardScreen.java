@@ -26,6 +26,9 @@ public final class DashboardScreen extends Screen {
     private static volatile String deathError = null;
     private static volatile java.util.List<String[]> punishments = java.util.Collections.emptyList();
     private static volatile String punishmentError = null;
+    private static volatile int analyticsOnline = -1, analyticsAfk = -1, analyticsTracked = -1;
+    private static volatile java.util.List<String[]> analyticsStaff = java.util.Collections.emptyList();
+    private static volatile String analyticsError = null;
 
     public DashboardScreen() { super(Text.literal("StaffJobs Dashboard")); }
 
@@ -43,7 +46,12 @@ public final class DashboardScreen extends Screen {
     public static void updateActivity(java.util.List<String> value) { activity = java.util.Collections.unmodifiableList(new java.util.ArrayList<>(value)); activityError = null; }
     public static void updateDeaths(java.util.List<String[]> value) { deaths = java.util.Collections.unmodifiableList(new java.util.ArrayList<>(value)); deathError = null; }
     public static void updatePunishments(java.util.List<String[]> value) { punishments = java.util.Collections.unmodifiableList(new java.util.ArrayList<>(value)); punishmentError = null; }
-    public static void updateSectionDenied(String section, String reason) { if ("reports".equals(section)) reportError = reason; else if ("activity".equals(section)) activityError = reason; else if ("deaths".equals(section)) deathError = reason; else if ("punishments".equals(section)) punishmentError = reason; }
+    public static void updateAnalytics(int online, int afk, int tracked, java.util.List<String[]> entries) {
+        analyticsOnline = online; analyticsAfk = afk; analyticsTracked = tracked;
+        analyticsStaff = java.util.Collections.unmodifiableList(new java.util.ArrayList<>(entries));
+        analyticsError = null;
+    }
+    public static void updateSectionDenied(String section, String reason) { if ("reports".equals(section)) reportError = reason; else if ("activity".equals(section)) activityError = reason; else if ("deaths".equals(section)) deathError = reason; else if ("punishments".equals(section)) punishmentError = reason; else if ("analytics".equals(section)) analyticsError = reason; }
     public static void updateReportActionResult(String result, String message) { reportActionMessage = message; if ("OK".equals(result)) { reports = java.util.Collections.emptyList(); reportError = "Action completed. Refresh Report Center to reload."; } else reportError = message; }
 
     @Override
@@ -128,6 +136,37 @@ public final class DashboardScreen extends Screen {
                         context.drawTextWithShadow(textRenderer, labels[i], x + 28, actionY + 7, 0xFFFFFFFF);
                     }
                 }
+            }
+        } else if (selectedPage == 3) {
+            context.drawTextWithShadow(textRenderer, "Staff Analytics", contentLeft, top + 22, 0xFFFFFFFF);
+            context.drawTextWithShadow(textRenderer, "Live staff presence · AFK status · tracked roster", contentLeft, top + 40, MUTED);
+            int panelTop = top + 76;
+            context.fill(contentLeft, panelTop, right - 18, bottom - 22, PANEL);
+            if (analyticsError != null) {
+                context.drawTextWithShadow(textRenderer, analyticsError, contentLeft + 16, panelTop + 24, 0xFFFF7777);
+            } else if (analyticsOnline < 0) {
+                context.drawTextWithShadow(textRenderer, "Loading staff analytics...", contentLeft + 16, panelTop + 24, MUTED);
+            } else {
+                int cardW = 148, gap = 12;
+                drawCard(context, contentLeft + 12, panelTop + 12, cardW, 66, "STAFF ONLINE", Integer.toString(analyticsOnline), "Currently connected");
+                drawCard(context, contentLeft + 12 + cardW + gap, panelTop + 12, cardW, 66, "STAFF AFK", Integer.toString(analyticsAfk), "Idle by AFK threshold");
+                drawCard(context, contentLeft + 12 + (cardW + gap) * 2, panelTop + 12, cardW, 66, "TRACKED STAFF", Integer.toString(analyticsTracked), "Known staff roster");
+                context.drawTextWithShadow(textRenderer, "STAFF ROSTER", contentLeft + 16, panelTop + 94, GREEN);
+                if (analyticsStaff.isEmpty()) {
+                    context.drawTextWithShadow(textRenderer, "No tracked staff records yet.", contentLeft + 16, panelTop + 116, MUTED);
+                } else {
+                    for (int i = 0; i < analyticsStaff.size() && i < 8; i++) {
+                        String[] entry = analyticsStaff.get(i);
+                        int rowY = panelTop + 110 + i * 27;
+                        context.fill(contentLeft + 10, rowY, right - 28, rowY + 23, (i % 2 == 0) ? PANEL_ALT : PANEL);
+                        context.drawTextWithShadow(textRenderer, entry[0], contentLeft + 18, rowY + 7, 0xFFFFFFFF);
+                        context.drawTextWithShadow(textRenderer, entry[1], contentLeft + 250, rowY + 7,
+                                "ONLINE".equals(entry[1]) ? GREEN : MUTED);
+                        String seen = "ONLINE".equals(entry[1]) ? "Now" : "OFFLINE".equals(entry[1]) ? "Last seen: " + entry[2] : "AFK";
+                        context.drawTextWithShadow(textRenderer, seen, contentLeft + 340, rowY + 7, MUTED);
+                    }
+                }
+                context.drawTextWithShadow(textRenderer, "Session history / cumulative playtime is not recorded yet.", contentLeft + 16, bottom - 38, MUTED);
             }
         } else if (selectedPage == 6) {
             context.drawTextWithShadow(textRenderer, "Punishment History", contentLeft, top + 22, 0xFFFFFFFF);
@@ -221,6 +260,11 @@ public final class DashboardScreen extends Screen {
                         selectedProfile = null;
                         profileError = null;
                         StaffJobsUI.requestPlayers();
+                    } else if (i == 3) {
+                        analyticsOnline = -1;
+                        analyticsError = null;
+                        analyticsStaff = java.util.Collections.emptyList();
+                        StaffJobsUI.requestAnalytics();
                     } else if (i == 2) {
                         reports = java.util.Collections.emptyList();
                         reportError = null;

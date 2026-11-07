@@ -27,6 +27,10 @@ Client sends `GET_OVERVIEW` after WELCOME. Server rechecks the session and `staf
 
 Requests are rate-limited per player. Malformed, oversized, or trailing payload data is rejected. No IP addresses or other private player details are transmitted.
 
+## Implemented dashboard settings endpoint
+
+Client sends `GET_SETTINGS`. Server checks `staffjobs.settings` and returns the configured theme preset, primary/secondary/background/text/accent colors, and gradient flag from `interface.theme`. The Fabric client applies the configured primary, background, text, and accent colors and displays the complete theme configuration in Settings. Theme changes are currently server-config-driven through `config.yml`; this endpoint is read-only and does not permit remote config mutation. Unauthorized clients receive `SECTION_DENIED`.
+
 ## Implemented staff analytics endpoint
 
 Client sends `GET_ANALYTICS`. Server checks `staffjobs.analytics` and returns live online staff count, AFK staff count, tracked staff count, and up to 10 roster entries (name, ONLINE/AFK/OFFLINE status, last-online timestamp). The roster only counts records explicitly marked as staff. Historical session duration and cumulative playtime are not currently tracked. Unauthorized clients receive `SECTION_DENIED` for the analytics section.

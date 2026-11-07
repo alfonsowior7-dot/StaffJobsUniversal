@@ -40,8 +40,10 @@ public final class StaffJobsBridge implements PluginMessageListener {
     public void onPluginMessageReceived(String channel, Player player, byte[] message) {
         if (!CHANNEL.equals(channel) || message == null || message.length == 0 || message.length > 1024) return;
         String request;
+        String targetName = null;
         try (DataInputStream input = new DataInputStream(new ByteArrayInputStream(message))) {
             request = readString(input);
+            if ("GET_PLAYER_PROFILE".equals(request)) targetName = readString(input);
             if (input.available() != 0) throw new IOException("Unexpected trailing payload");
         } catch (IOException exception) {
             plugin.getLogger().fine("Ignored malformed StaffJobs UI message from " + player.getName());
@@ -86,6 +88,26 @@ public final class StaffJobsBridge implements PluginMessageListener {
             }
             sendResponse(player, "OVERVIEW", Integer.toString(onlinePlayers),
                     Integer.toString(maxPlayers), Integer.toString(onlineStaff));
+            return;
+        }
+
+        if ("GET_PLAYER_PROFILE".equals(request)) {
+            if (!player.hasPermission("staffjobs.players")) {
+                sendResponse(player, "DENIED", "Missing permission: staffjobs.players");
+                return;
+            }
+            if (targetName == null || targetName.length() < 1 || targetName.length() > 16
+                    || !targetName.matches("[A-Za-z0-9_]+")) {
+                sendResponse(player, "PROFILE_ERROR", "Invalid player name.");
+                return;
+            }
+            Player target = Bukkit.getPlayerExact(targetName);
+            if (target == null) {
+                sendResponse(player, "PROFILE_ERROR", "Player is no longer online.");
+                return;
+            }
+            sendResponse(player, "PLAYER_PROFILE", target.getName(), target.getGameMode().name(),
+                    target.getWorld().getName(), Integer.toString(Math.max(0, target.getPing())));
             return;
         }
 

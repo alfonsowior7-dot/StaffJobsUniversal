@@ -37,3 +37,18 @@ settings:
   punishments:
     max-history-per-player: 100
     mute-message: "You are muted and cannot chat."
+
+# StaffJobs 2.0.0 dashboard bridge and visual defaults.
+interface:
+  dashboard:
+    enabled: true
+    channel: "staffjobs:ui"
+    protocol-version: 1
+  theme:
+    preset: "BLACK_GREEN"
+    primary-color: "#00FF66"
+    secondary-color: "#008F3D"
+    background-color: "#101010"
+    text-color: "#FFFFFF"
+    accent-color: "#39FF88"
+    gradient: true

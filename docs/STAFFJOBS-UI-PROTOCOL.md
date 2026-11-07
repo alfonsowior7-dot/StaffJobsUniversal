@@ -1,6 +1,6 @@
 # StaffJobs UI Plugin Message Protocol
 
-Status: protocol version 1; read-only overview, online player list, and online player profile endpoints implemented.
+Status: protocol version 1; read-only overview, online player list, and online player profile endpoints implemented. Client-side player-name filtering is available in the Fabric dashboard.
 
 ## Transport
 - Channel: `staffjobs:ui`
@@ -49,7 +49,7 @@ Profiles are read-only. No IP address, coordinates, inventory, or other private 
 - Reject unsupported protocol versions safely.
 
 ## Planned, not yet implemented
-- Player search/profile
+- Server-side player search (current search filters the received online-name list locally); richer profile fields
 - Report list and moderation actions
 - Staff analytics and activity pages
 - Death logs

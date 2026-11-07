@@ -6,7 +6,7 @@
 2. **StaffJobs UI (Fabric companion mod):** dashboard window and client-side navigation, intended only for staff with the relevant permissions.
 3. **StaffJobs Resource Pack:** optional shared visual assets such as icon glyphs, textures, and fonts.
 
-The companion mod is not created in this repository yet. The initial work here establishes the server-side integration contract.
+The Fabric companion mod scaffold now lives in `staffjobs-ui/` in this repository. It has a dashboard shell, protocol receiver, and read-only player views.
 
 ## Completed foundation
 
@@ -20,10 +20,12 @@ The companion mod is not created in this repository yet. The initial work here e
 ## Next milestones
 
 - [ ] Create the separate Fabric companion mod repository.
-- [ ] Implement the client handshake and protocol-version validation.
-- [ ] Implement the dark dashboard shell, navigation, and theme loader.
-- [ ] Add permission-filtered dashboard summary data.
-- [ ] Add player profiles and player management views.
+- [x] Implement the client handshake and protocol-version validation.
+- [x] Implement the dark dashboard shell and navigation (theme configuration loader remains pending).
+- [x] Add permission-checked overview summary data.
+- [x] Add read-only online player list and online player profile.
+- [x] Add client-side name filtering to the online player list.
+- [ ] Add server-side search pagination and permission-aware management actions.
 - [ ] Add Report Center, Activity History, Death Logs, and Punishments.
 - [ ] Add analytics and settings screens.
 - [ ] Add optional resource-pack assets.

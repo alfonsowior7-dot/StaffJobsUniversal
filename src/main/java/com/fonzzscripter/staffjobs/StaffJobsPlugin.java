@@ -480,7 +480,7 @@ public class StaffJobsPlugin extends JavaPlugin implements Listener {
                 if (staff.hasPermission("staffjobs.use")) {
                     if (notificationsData.getBoolean("preferences." + staff.getUniqueId() + ".chat", true)) {
                         staff.sendMessage(PREFIX + ChatColor.YELLOW + player.getName() + " submitted a new report!");
-                        staff.sendMessage(ChatColor.GRAY + "Use /staffmenu to view reports.");
+                        staff.sendMessage(PREFIX + ChatColor.GRAY + "Use /staffmenu to view reports.");
                     }
                     if (notificationsData.getBoolean("preferences." + staff.getUniqueId() + ".sound", true)) {
                         try {
@@ -1211,7 +1211,7 @@ public class StaffJobsPlugin extends JavaPlugin implements Listener {
             if (target != null) targetName = target.getName();
         }
         staff.sendMessage(PREFIX + ChatColor.YELLOW + "Enter the reason for " + targetName + " in chat.");
-        staff.sendMessage(ChatColor.GRAY + "Type 'cancel' to cancel this action.");
+        staff.sendTitle(ChatColor.GRAY + "Type 'cancel' to cancel this action.", "", 10, 70, 20);
     }
 
     @EventHandler
@@ -1240,7 +1240,7 @@ public class StaffJobsPlugin extends JavaPlugin implements Listener {
                 pendingReason.put(staffId, input);
                 pendingAction.put(staffId, "tempban_duration");
                 staff.sendMessage(PREFIX + ChatColor.YELLOW + "Now enter the temporary ban duration.");
-                staff.sendMessage(ChatColor.GRAY + "Examples: 10s, 5m, 2h, 7d, 2w, 1mo, 1y.");
+                staff.sendMessage(PREFIX + ChatColor.GRAY + "Examples: 10s, 5m, 2h, 7d, 2w, 1mo, 1y.");
                 return;
             }
 

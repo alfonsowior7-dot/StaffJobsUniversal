@@ -111,6 +111,33 @@ public final class StaffJobsBridge implements PluginMessageListener {
             return;
         }
 
+        if ("GET_REPORTS".equals(request)) {
+            if (!player.hasPermission("staffjobs.reports")) {
+                sendResponse(player, "SECTION_DENIED", "reports", "Missing permission: staffjobs.reports");
+                return;
+            }
+            if (!(plugin instanceof StaffJobsPlugin)) {
+                sendResponse(player, "REPORTS", "0");
+                return;
+            }
+            java.util.List<java.util.Map<?, ?>> reports = ((StaffJobsPlugin) plugin).getDashboardReports();
+            int count = Math.min(20, reports.size());
+            String[] response = new String[2 + count * 6];
+            response[0] = "REPORTS";
+            response[1] = Integer.toString(count);
+            for (int i = 0; i < count; i++) {
+                java.util.Map<?, ?> report = reports.get(reports.size() - 1 - i);
+                int offset = 2 + i * 6;
+                response[offset] = safeField(report.get("id"), 80);
+                response[offset + 1] = safeField(report.get("player"), 16);
+                response[offset + 2] = safeField(report.get("date"), 48);
+                response[offset + 3] = safeField(report.get("status"), 16);
+                response[offset + 4] = safeField(report.get("assigned-staff"), 32);
+                response[offset + 5] = safeField(report.get("message"), 256);
+            }
+            sendResponse(player, response);
+            return;
+        }
         if ("GET_PLAYERS".equals(request)) {
             if (!player.hasPermission("staffjobs.players")) {
                 sendResponse(player, "DENIED", "Missing permission: staffjobs.players");
@@ -129,6 +156,11 @@ public final class StaffJobsBridge implements PluginMessageListener {
         }
     }
 
+    private static String safeField(Object value, int maxLength) {
+        if (value == null) return "";
+        String text = String.valueOf(value).replaceAll("[\\r\\n§]", " ");
+        return text.length() <= maxLength ? text : text.substring(0, maxLength);
+    }
     private static String readString(DataInputStream input) throws IOException {
         int length = readVarInt(input);
         if (length < 0 || length > 1024 || length > input.available()) throw new IOException("Invalid string length");

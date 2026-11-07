@@ -1,57 +1,43 @@
 # StaffJobs UI Plugin Message Protocol
 
-Status: draft, protocol version 1.
+Status: protocol version 1; read-only overview endpoint implemented.
 
 ## Transport
+- Channel: `staffjobs:ui`
+- Direction: Fabric client mod to Paper plugin; replies return to the same player.
+- Every field is a VarInt-length-prefixed UTF-8 string (compatible with Fabric `PacketByteBuf.writeString/readString`).
+- Maximum accepted request payload: 1024 bytes.
+- The server is authoritative; client-side state never grants permission.
 
-- Minecraft plugin messaging channel: `staffjobs:ui`
-- Direction: client companion mod to Paper plugin, with replies from Paper to the same player.
-- Payload encoding: Java `DataOutputStream.writeUTF` fields in sequence.
-- Maximum request payload accepted by the initial bridge: 1024 bytes.
-- The server is authoritative. The client must never be trusted to grant permissions or decide whether an action is allowed.
+## Handshake
+Client sends `HELLO`.
+Server checks `staffjobs.dashboard` and replies with:
+- `WELCOME`, protocol version, plugin version, player UUID
+or:
+- `DENIED`, short reason.
 
-## Version 1 handshake
+A successful handshake creates a per-player session. Repeating HELLO resets that session.
 
-Client sends one UTF field:
+## Implemented read-only request
+Client sends `GET_OVERVIEW` after WELCOME. Server rechecks the session and `staffjobs.dashboard` on every request, then replies:
+- `OVERVIEW`
+- online player count
+- maximum player count
+- online staff count (players with `staffjobs.use`)
 
-```text
-HELLO
-```
-
-If the player has `staffjobs.dashboard`, server replies with four UTF fields:
-
-1. `WELCOME`
-2. Protocol version (currently `1`)
-3. Installed StaffJobs plugin version
-4. Player UUID
-
-If the player lacks permission, server replies with:
-
-1. `DENIED`
-2. A short reason
-
-The server rate-limits repeated HELLO requests per player.
+Requests are rate-limited per player. Malformed, oversized, or trailing payload data is rejected. No IP addresses or other private player details are transmitted.
 
 ## Security requirements for future messages
+- Check each section/action's own permission server-side.
+- Validate target existence, state, and all arguments.
+- Audit every administrative action.
+- Never trust a permission level or action result supplied by the client.
+- Reject unsupported protocol versions safely.
 
-- Every request must be validated server-side.
-- Every dashboard section and action must check its own permission node.
-- Never accept a permission level, target UUID, or action result as authoritative merely because it came from the client.
-- Validate target existence, online/offline state, arguments, and action-specific constraints.
-- Administrative actions must be audited using the existing StaffJobs activity log system.
-- Do not send private player data until the client has completed the handshake and the player has the relevant permission.
-- Future protocol changes must use an explicit protocol version and reject unsupported versions safely.
-
-## Planned message families
-
-These are design placeholders, not implemented messages:
-
-- `DASHBOARD_SUMMARY`
-- `PLAYER_SEARCH` / `PLAYER_PROFILE`
-- `REPORT_LIST` / `REPORT_ACTION`
-- `ACTIVITY_PAGE`
-- `DEATHLOG_PAGE`
-- `PUNISHMENT_HISTORY` / `PUNISHMENT_ACTION`
-- `SETTINGS_READ` / `SETTINGS_UPDATE`
-
-No player data or administrative action messages are implemented in protocol v1.
+## Planned, not yet implemented
+- Player search/profile
+- Report list and moderation actions
+- Staff analytics and activity pages
+- Death logs
+- Punishment history/actions
+- Settings read/update

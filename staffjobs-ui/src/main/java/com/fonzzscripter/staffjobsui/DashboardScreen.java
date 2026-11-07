@@ -22,6 +22,8 @@ public final class DashboardScreen extends Screen {
     private int selectedReportIndex = -1;
     private static volatile java.util.List<String> activity = java.util.Collections.emptyList();
     private static volatile String activityError = null;
+    private static volatile java.util.List<String[]> deaths = java.util.Collections.emptyList();
+    private static volatile String deathError = null;
 
     public DashboardScreen() { super(Text.literal("StaffJobs Dashboard")); }
 
@@ -37,7 +39,8 @@ public final class DashboardScreen extends Screen {
     public static void updatePlayerProfileError(String reason) { selectedProfile = null; profileError = reason; }
     public static void updateReports(java.util.List<String[]> value) { reports = java.util.Collections.unmodifiableList(new java.util.ArrayList<>(value)); reportError = null; }
     public static void updateActivity(java.util.List<String> value) { activity = java.util.Collections.unmodifiableList(new java.util.ArrayList<>(value)); activityError = null; }
-    public static void updateSectionDenied(String section, String reason) { if ("reports".equals(section)) reportError = reason; else if ("activity".equals(section)) activityError = reason; }
+    public static void updateDeaths(java.util.List<String[]> value) { deaths = java.util.Collections.unmodifiableList(new java.util.ArrayList<>(value)); deathError = null; }
+    public static void updateSectionDenied(String section, String reason) { if ("reports".equals(section)) reportError = reason; else if ("activity".equals(section)) activityError = reason; else if ("deaths".equals(section)) deathError = reason; }
     public static void updateReportActionResult(String result, String message) { reportActionMessage = message; if ("OK".equals(result)) { reports = java.util.Collections.emptyList(); reportError = "Action completed. Refresh Report Center to reload."; } else reportError = message; }
 
     @Override
@@ -123,6 +126,26 @@ public final class DashboardScreen extends Screen {
                     }
                 }
             }
+        } else if (selectedPage == 5) {
+            context.drawTextWithShadow(textRenderer, "Death Logs", contentLeft, top + 22, 0xFFFFFFFF);
+            context.drawTextWithShadow(textRenderer, "Latest death records · metadata only · no inventory snapshots", contentLeft, top + 40, MUTED);
+            int panelTop = top + 76;
+            context.fill(contentLeft, panelTop, right - 18, bottom - 22, PANEL);
+            if (deathError != null) {
+                context.drawTextWithShadow(textRenderer, deathError, contentLeft + 16, panelTop + 24, 0xFFFF7777);
+            } else if (deaths.isEmpty()) {
+                context.drawTextWithShadow(textRenderer, "No death records available.", contentLeft + 16, panelTop + 24, MUTED);
+            } else {
+                for (int i = 0; i < deaths.size() && i < 10; i++) {
+                    String[] entry = deaths.get(i);
+                    int rowY = panelTop + 10 + i * 34;
+                    context.fill(contentLeft + 10, rowY, right - 28, rowY + 30, (i % 2 == 0) ? PANEL_ALT : PANEL);
+                    context.drawTextWithShadow(textRenderer, entry[1] + " · " + entry[4], contentLeft + 17, rowY + 4, GREEN);
+                    String detail = entry[2] + " · " + entry[3];
+                    if (detail.length() > 78) detail = detail.substring(0, 78) + "…";
+                    context.drawTextWithShadow(textRenderer, detail, contentLeft + 17, rowY + 17, MUTED);
+                }
+            }
         } else if (selectedPage == 4) {
             context.drawTextWithShadow(textRenderer, "Activity History", contentLeft, top + 22, 0xFFFFFFFF);
             context.drawTextWithShadow(textRenderer, "Latest staff actions · read-only audit entries", contentLeft, top + 40, MUTED);
@@ -180,6 +203,11 @@ public final class DashboardScreen extends Screen {
                         reportError = null;
                         selectedReportIndex = -1;
                         StaffJobsUI.requestReports();
+                    }
+                    else if (i == 5) {
+                        deaths = java.util.Collections.emptyList();
+                        deathError = null;
+                        StaffJobsUI.requestDeathLogs();
                     }
                     else if (i == 4) {
                         activity = java.util.Collections.emptyList();

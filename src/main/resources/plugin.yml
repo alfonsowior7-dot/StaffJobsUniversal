@@ -81,3 +81,40 @@ permissions:
   staffjobs.punishments:
     description: View punishment history
     default: op
+
+  staffjobs.dashboard:
+    description: Open the StaffJobs companion dashboard
+    default: op
+  staffjobs.players:
+    description: Access dashboard player management
+    default: op
+  staffjobs.reports:
+    description: Access the dashboard report center
+    default: op
+  staffjobs.analytics:
+    description: View staff analytics
+    default: op
+  staffjobs.activity:
+    description: View staff activity history
+    default: op
+  staffjobs.deathlogs:
+    description: View death logs from the dashboard
+    default: op
+  staffjobs.punishments:
+    description: View and manage punishments
+    default: op
+  staffjobs.settings:
+    description: Access StaffJobs dashboard settings
+    default: op
+  staffjobs.admin:
+    description: Administrative access to StaffJobs
+    default: op
+    children:
+      staffjobs.dashboard: true
+      staffjobs.players: true
+      staffjobs.reports: true
+      staffjobs.analytics: true
+      staffjobs.activity: true
+      staffjobs.deathlogs: true
+      staffjobs.punishments: true
+      staffjobs.settings: true

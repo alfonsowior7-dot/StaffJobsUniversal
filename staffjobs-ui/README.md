@@ -31,3 +31,8 @@ Minecraft 1.20.1 is the initial compile target. Additional 1.20.x, 1.21.x, and 2
 ## Server
 
 Install StaffJobs Universal 2.0.0 beta on the Paper server. A staff member also needs this client mod. The server checks `staffjobs.dashboard`; each future dashboard feature will require its own permission check.
+
+
+### Local UI preferences
+
+The Fabric client stores per-device presentation preferences in `config/staffjobs-ui.properties`: `compactRows` controls staff roster density and `showOfflineStaff` controls whether offline staff appear in the analytics roster. These settings are local to each client and do not change server configuration or permissions.

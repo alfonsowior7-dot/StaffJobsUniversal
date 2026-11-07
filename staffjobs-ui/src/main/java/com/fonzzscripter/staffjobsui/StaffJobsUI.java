@@ -70,7 +70,8 @@ public final class StaffJobsUI implements ClientModInitializer {
                 if (count < 0 || count > 10) return;
                 java.util.List<String[]> entries = new java.util.ArrayList<>();
                 for (int i = 0; i < count; i++) {
-                    entries.add(new String[]{buf.readString(48), buf.readString(16), buf.readString(24)});
+                    entries.add(new String[]{buf.readString(48), buf.readString(16), buf.readString(24),
+                            buf.readString(24), buf.readString(12)});
                 }
                 client.execute(() -> DashboardScreen.updateAnalytics(currentOnline, currentAfk, tracked, entries));
             } else if ("PUNISHMENTS".equals(status)) {

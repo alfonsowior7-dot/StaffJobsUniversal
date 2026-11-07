@@ -46,7 +46,31 @@ public final class StaffJobsBridge implements PluginMessageListener {
         try (DataInputStream input = new DataInputStream(new ByteArrayInputStream(message))) {
             request = readString(input);
             if ("GET_PLAYER_PROFILE".equals(request)) targetName = readString(input);
-            if ("GET_ACTIVITY".equals(request)) {
+            if ("GET_DEATH_LOGS".equals(request)) {
+            if (!player.hasPermission("staffjobs.deathlogs")) {
+                sendResponse(player, "SECTION_DENIED", "deaths", "Missing permission: staffjobs.deathlogs");
+                return;
+            }
+            if (!(plugin instanceof StaffJobsPlugin)) { sendResponse(player, "DEATH_LOGS", "0"); return; }
+            java.util.List<String[]> entries = ((StaffJobsPlugin) plugin).getDashboardDeaths();
+            String[] response = new String[2 + entries.size() * 6];
+            response[0] = "DEATH_LOGS";
+            response[1] = Integer.toString(entries.size());
+            for (int i = 0; i < entries.size(); i++) {
+                String[] entry = entries.get(i);
+                int offset = 2 + i * 6;
+                response[offset] = safeField(entry[0], 36);
+                response[offset + 1] = safeField(entry[1], 16);
+                response[offset + 2] = safeField(entry[2], 48);
+                response[offset + 3] = safeField(entry[3], 96);
+                response[offset + 4] = safeField(entry[4], 160);
+                response[offset + 5] = safeField(entry[5], 12);
+            }
+            sendResponse(player, response);
+            return;
+        }
+
+        if ("GET_ACTIVITY".equals(request)) {
             if (!player.hasPermission("staffjobs.activity")) {
                 sendResponse(player, "SECTION_DENIED", "activity", "Missing permission: staffjobs.activity");
                 return;

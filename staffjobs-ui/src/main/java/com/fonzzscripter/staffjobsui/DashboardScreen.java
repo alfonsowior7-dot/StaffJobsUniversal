@@ -116,7 +116,7 @@ public final class DashboardScreen extends Screen {
 
     @Override
     public void render(DrawContext context, int mouseX, int mouseY, float delta) {
-        renderBackground(context);
+        renderBackground(context, mouseX, mouseY, delta);
         int left = Math.max(18, (width - 760) / 2), top = Math.max(18, (height - 440) / 2);
         int right = Math.min(width - 18, left + 760), bottom = Math.min(height - 18, top + 440);
         context.fill(left, top, right, bottom, BACKGROUND);
@@ -459,7 +459,7 @@ public final class DashboardScreen extends Screen {
             }
         }
         if (selectedPage == 1) searchFocused = false;
-        return super.mouseClicked(mouseX, mouseY, button);
+        return super.mouseClicked(click, doubled);
     }
 
     @Override

@@ -47,7 +47,7 @@ public final class StaffJobsBridge implements PluginMessageListener {
 
         String request;
         try (DataInputStream input = new DataInputStream(new ByteArrayInputStream(message))) {
-            request = input.readUTF();
+            request = readString(input);
         } catch (IOException exception) {
             plugin.getLogger().fine("Ignored malformed StaffJobs UI message from " + player.getName());
             return;
@@ -72,12 +72,49 @@ public final class StaffJobsBridge implements PluginMessageListener {
                 plugin.getDescription().getVersion(), player.getUniqueId().toString());
     }
 
+    private static String readString(DataInputStream input) throws IOException {
+        int length = readVarInt(input);
+        if (length < 0 || length > 1024 || length > input.available()) {
+            throw new IOException("Invalid string length");
+        }
+        byte[] bytes = new byte[length];
+        input.readFully(bytes);
+        return new String(bytes, StandardCharsets.UTF_8);
+    }
+
+    private static void writeString(DataOutputStream output, String value) throws IOException {
+        byte[] bytes = value.getBytes(StandardCharsets.UTF_8);
+        writeVarInt(output, bytes.length);
+        output.write(bytes);
+    }
+
+    private static int readVarInt(DataInputStream input) throws IOException {
+        int value = 0;
+        int position = 0;
+        byte current;
+        do {
+            current = input.readByte();
+            value |= (current & 0x7F) << position;
+            position += 7;
+            if (position >= 32) throw new IOException("VarInt too large");
+        } while ((current & 0x80) != 0);
+        return value;
+    }
+
+    private static void writeVarInt(DataOutputStream output, int value) throws IOException {
+        while ((value & 0xFFFFFF80) != 0) {
+            output.writeByte((value & 0x7F) | 0x80);
+            value >>>= 7;
+        }
+        output.writeByte(value);
+    }
+
     private void sendResponse(Player player, String... fields) {
         try {
             ByteArrayOutputStream bytes = new ByteArrayOutputStream();
             try (DataOutputStream output = new DataOutputStream(bytes)) {
                 for (String field : fields) {
-                    output.writeUTF(field);
+                    writeString(output, field);
                 }
             }
             player.sendPluginMessage(plugin, CHANNEL, bytes.toByteArray());

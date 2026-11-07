@@ -75,6 +75,9 @@ public class StaffJobsPlugin extends JavaPlugin implements Listener {
     private final Map<UUID, Integer> reportPages = new HashMap<>();
     private final Map<UUID, Integer> playerPages = new HashMap<>();
     private final Map<UUID, String> selectedReports = new HashMap<>();
+    private final Map<UUID, Map<Integer, String>> reportSlotIds = new HashMap<>();
+    private final Map<UUID, Map<Integer, UUID>> playerSlotTargets = new HashMap<>();
+    private final Map<UUID, Map<Integer, String>> deathSlotIds = new HashMap<>();
 
     private File frozenFile, reportsFile, notificationsFile, logsFile, deathsFile, punishmentsFile, staffStatusFile;
     private YamlConfiguration staffStatusData;
@@ -138,7 +141,7 @@ public class StaffJobsPlugin extends JavaPlugin implements Listener {
         if (getConfig().getBoolean("settings.backups.enabled", true)) {
             long interval = Math.max(1L, getConfig().getLong("settings.backups.interval-hours", 24L));
             long ticks = interval * 60L * 60L * 20L;
-            Bukkit.getScheduler().runTaskTimer(this, this::createDataBackup, ticks, ticks);
+            Bukkit.getScheduler().runTaskTimer(this, () -> createDataBackup(), ticks, ticks);
         }
         if (getConfig().getBoolean("settings.auto-save", true)) {
             Bukkit.getScheduler().runTaskTimer(this, this::saveAllData, 20L * 60L * 5L, 20L * 60L * 5L);
@@ -166,6 +169,12 @@ public class StaffJobsPlugin extends JavaPlugin implements Listener {
         playerPages.clear();
         activityPages.clear();
         selectedReports.clear();
+        reportSlotIds.clear();
+        playerSlotTargets.clear();
+        deathSlotIds.clear();
+        staffHistoryPages.clear();
+        selectedHistoryStaff.clear();
+        deathSelection.clear();
     }
 
     // DATA STORAGE
@@ -304,6 +313,7 @@ public class StaffJobsPlugin extends JavaPlugin implements Listener {
                 addPunishment(target, "WARN", reason, actor, 0L);
                 target.sendMessage(PREFIX + ChatColor.YELLOW + "You have received a warning: " + reason);
                 sender.sendMessage(PREFIX + ChatColor.GREEN + "Warning issued to " + target.getName() + ".");
+                logAction(sender instanceof Player staff ? staff : null, "WARN", target.getName(), "No warning", reason);
             } else if (action.equals("mute")) {
                 Date expiry = parseBanExpiry(args[1]);
                 if (expiry == null) {
@@ -316,11 +326,13 @@ public class StaffJobsPlugin extends JavaPlugin implements Listener {
                 addPunishment(target, "MUTE", reason, actor, until);
                 target.sendMessage(PREFIX + ChatColor.RED + "You have been muted for " + args[1] + ". Reason: " + reason);
                 sender.sendMessage(PREFIX + ChatColor.GREEN + target.getName() + " muted for " + args[1] + ".");
+                logAction(sender instanceof Player staff ? staff : null, "MUTE", target.getName(), "Unmuted", "Muted until " + expiry);
             } else if (action.equals("unmute")) {
                 mutedUntil.remove(target.getUniqueId());
                 addPunishment(target, "UNMUTE", "Mute removed", actor, 0L);
                 sender.sendMessage(PREFIX + ChatColor.GREEN + target.getName() + " has been unmuted.");
                 target.sendMessage(PREFIX + ChatColor.GREEN + "Your mute has been removed.");
+                logAction(sender instanceof Player staff ? staff : null, "UNMUTE", target.getName(), "Muted", "Unmuted");
             } else {
                 List<String> history = punishmentsData.getStringList("players." + target.getUniqueId());
                 sender.sendMessage("§8§m---------------- STAFFJOBS HISTORY ----------------");
@@ -392,7 +404,7 @@ public class StaffJobsPlugin extends JavaPlugin implements Listener {
     private void addPunishment(Player target, String type, String reason, String actor, long expiry) {
         String path = "players." + target.getUniqueId();
         List<String> history = punishmentsData.getStringList(path);
-        String record = ZonedDateTime.now(getConfiguredZone()).format(dateFormatter) + " WIB | " + type
+        String record = ZonedDateTime.now(getConfiguredZone()).format(dateFormatter) + " " + getZoneLabel() + " | " + type
                 + " | By: " + actor + " | Reason: " + reason
                 + (expiry > 0 ? " | Expires: " + ZonedDateTime.ofInstant(
                         java.time.Instant.ofEpochMilli(expiry), getConfiguredZone()).format(dateFormatter) + " " + getZoneLabel() : "");
@@ -485,6 +497,7 @@ public class StaffJobsPlugin extends JavaPlugin implements Listener {
 
     private void openReportLogs(Player player, int page) {
         List<Map<?, ?>> reports = getReports();
+        Map<Integer, String> slotIds = new HashMap<>();
         int maxPages = Math.max(1, (reports.size() + 44) / 45);
         page = Math.max(0, Math.min(page, maxPages - 1));
         reportPages.put(player.getUniqueId(), page);
@@ -495,7 +508,9 @@ public class StaffJobsPlugin extends JavaPlugin implements Listener {
 
         for (int i = start; i < end; i++) {
             Map<?, ?> report = reports.get(i);
-            inventory.setItem(i - start, createItem(
+            int slot = i - start;
+            slotIds.put(slot, reportValue(report, "id", ""));
+            inventory.setItem(slot, createItem(
                     Material.PAPER,
                     ChatColor.YELLOW + reportValue(report, "player", "Unknown"),
                     ChatColor.GRAY + "Time: " + reportValue(report, "date", "Unknown"),
@@ -507,6 +522,7 @@ public class StaffJobsPlugin extends JavaPlugin implements Listener {
         inventory.setItem(45, createItem(Material.ARROW, "§ePrevious Page"));
         inventory.setItem(49, createItem(Material.BARRIER, "§cBack"));
         inventory.setItem(53, createItem(Material.ARROW, "§eNext Page"));
+        reportSlotIds.put(player.getUniqueId(), slotIds);
         player.openInventory(inventory);
     }
 
@@ -570,6 +586,7 @@ public class StaffJobsPlugin extends JavaPlugin implements Listener {
         reports.remove(target);
         reportsData.set("reports", reports);
         saveReports();
+        logAction(staff, "REPORT_ACCEPTED", reporterName + " [" + id + "]");
 
         String staffMessage = PREFIX + ChatColor.YELLOW + staff.getName()
                 + " resolved the report from " + reporterName;
@@ -619,6 +636,8 @@ public class StaffJobsPlugin extends JavaPlugin implements Listener {
             reports.set(reports.indexOf(raw), updated);
             reportsData.set("reports", reports);
             saveReports();
+            logAction(staff, "REPORT_ASSIGNED", reportValue(raw, "player", "Unknown") + " [" + id + "]",
+                    assigned, staff.getName());
             staff.sendMessage(PREFIX + ChatColor.GREEN + "Report " + id + " assigned to you.");
             return;
         }
@@ -878,6 +897,8 @@ public class StaffJobsPlugin extends JavaPlugin implements Listener {
 
     private void openPlayers(Player player, int requestedPage) {
         List<Player> online = new ArrayList<>(Bukkit.getOnlinePlayers());
+        online.sort(Comparator.comparing(Player::getName, String.CASE_INSENSITIVE_ORDER));
+        Map<Integer, UUID> slotTargets = new HashMap<>();
         int pages = Math.max(1, (online.size() + 44) / 45);
         int page = Math.max(0, Math.min(requestedPage, pages - 1));
         playerPages.put(player.getUniqueId(), page);
@@ -885,11 +906,14 @@ public class StaffJobsPlugin extends JavaPlugin implements Listener {
         int start = page * 45;
         for (int i = start; i < Math.min(online.size(), start + 45); i++) {
             Player target = online.get(i);
-            inventory.setItem(i - start, createItem(Material.PLAYER_HEAD, "§e" + target.getName(), "§7Click to manage this player."));
+            int slot = i - start;
+            slotTargets.put(slot, target.getUniqueId());
+            inventory.setItem(slot, createItem(Material.PLAYER_HEAD, "§e" + target.getName(), "§7Click to manage this player."));
         }
         inventory.setItem(45, createItem(Material.ARROW, "§ePrevious Page"));
         inventory.setItem(49, createItem(Material.ARROW, "§eBack", "§7Page " + (page + 1) + "/" + pages));
         inventory.setItem(53, createItem(Material.ARROW, "§eNext Page"));
+        playerSlotTargets.put(player.getUniqueId(), slotTargets);
         player.openInventory(inventory);
     }
 
@@ -921,9 +945,15 @@ public class StaffJobsPlugin extends JavaPlugin implements Listener {
     @EventHandler
     public void onStaffLogsInventoryDrag(InventoryDragEvent event) {
         String title = event.getView().getTitle();
-        if (title.equals("§8Staff Activity Logs") || title.equals(STAFF_HISTORY_DETAIL)) {
-            event.setCancelled(true);
-        }
+        if (isStaffJobsInventory(title)) event.setCancelled(true);
+    }
+
+    private boolean isStaffJobsInventory(String title) {
+        return title.equals(MENU) || title.startsWith(REPORTS) || title.equals(REPORT_DETAIL)
+                || title.equals(PLAYERS) || title.equals(ACTIONS) || title.equals(CONFIRM)
+                || title.equals("§8Staff Activity Logs") || title.equals(STAFF_HISTORY_DETAIL)
+                || title.startsWith("§8Death History") || title.equals("§8Death Rollback")
+                || title.equals(ONLINE_STAFF) || title.equals(NOTIFICATION_SETTINGS);
     }
 
     @EventHandler
@@ -979,11 +1009,9 @@ public class StaffJobsPlugin extends JavaPlugin implements Listener {
             }
             ItemStack clicked = event.getCurrentItem();
             if (clicked == null || clicked.getType() != Material.PAPER) return;
-            List<Map<?, ?>> reports = getReports();
-            int index = page * 45 + slot;
-            if (index >= 0 && index < reports.size()) {
-                openReportDetail(player, reportValue(reports.get(index), "id", ""));
-            }
+            String reportId = reportSlotIds.getOrDefault(player.getUniqueId(), Collections.emptyMap()).get(slot);
+            if (reportId != null && findReport(reportId) != null) openReportDetail(player, reportId);
+            else { player.sendMessage(PREFIX + ChatColor.RED + "That report is no longer available. Refreshing the list."); openReportLogs(player, page); }
             return;
         }
 
@@ -1051,11 +1079,9 @@ public class StaffJobsPlugin extends JavaPlugin implements Listener {
             if (slot == 53) { openDeathHistory(player, page + 1); return; }
             ItemStack clicked = event.getCurrentItem();
             if (clicked == null || clicked.getType() != Material.SKELETON_SKULL) return;
-            List<String> ids = new ArrayList<>(deathsData.getConfigurationSection("deaths") == null
-                    ? Collections.emptySet() : deathsData.getConfigurationSection("deaths").getKeys(false));
-            Collections.reverse(ids);
-            int index = page * 45 + slot;
-            if (index >= 0 && index < ids.size()) openDeathDetail(player, ids.get(index));
+            String deathId = deathSlotIds.getOrDefault(player.getUniqueId(), Collections.emptyMap()).get(slot);
+            if (deathId != null && deathsData.contains("deaths." + deathId)) openDeathDetail(player, deathId);
+            else { player.sendMessage(PREFIX + ChatColor.RED + "That death record is no longer available. Refreshing the list."); openDeathHistory(player, page); }
             return;
         }
 
@@ -1077,10 +1103,9 @@ public class StaffJobsPlugin extends JavaPlugin implements Listener {
             if (slot >= 45) return;
             ItemStack clicked = event.getCurrentItem();
             if (clicked == null || clicked.getType() != Material.PLAYER_HEAD) return;
-            List<Player> online = new ArrayList<>(Bukkit.getOnlinePlayers());
-            int index = page * 45 + slot;
-            if (index < online.size()) {
-                Player target = online.get(index);
+            UUID targetId = playerSlotTargets.getOrDefault(player.getUniqueId(), Collections.emptyMap()).get(slot);
+            Player target = targetId == null ? null : Bukkit.getPlayer(targetId);
+            if (target != null && target.isOnline()) {
                 if (!canManage(player, target)) {
                     player.sendMessage(PREFIX + ChatColor.RED + "That player's rank is too high.");
                     return;
@@ -1111,7 +1136,10 @@ public class StaffJobsPlugin extends JavaPlugin implements Listener {
                     player.sendMessage(PREFIX + ChatColor.RED + "You cannot freeze yourself.");
                     return;
                 }
+                boolean wasFrozen = frozen.contains(target.getUniqueId());
                 toggleFreeze(target);
+                logAction(player, wasFrozen ? "UNFREEZE" : "FREEZE", target.getName(),
+                        wasFrozen ? "Frozen" : "Unfrozen", wasFrozen ? "Unfrozen" : "Frozen");
                 openActions(player, target);
             } else if (slot == 20) {
                 if (!player.hasPermission("staffjobs.invsee")) {
@@ -1454,6 +1482,7 @@ public class StaffJobsPlugin extends JavaPlugin implements Listener {
         List<String> ids = new ArrayList<>(deathsData.getConfigurationSection("deaths") == null
                 ? Collections.emptySet() : deathsData.getConfigurationSection("deaths").getKeys(false));
         Collections.reverse(ids);
+        Map<Integer, String> slotIds = new HashMap<>();
         int pages = Math.max(1, (ids.size() + 44) / 45);
         page = Math.max(0, Math.min(page, pages - 1));
         deathPages.put(staff.getUniqueId(), page);
@@ -1461,7 +1490,9 @@ public class StaffJobsPlugin extends JavaPlugin implements Listener {
         for (int i = page * 45; i < Math.min(ids.size(), (page + 1) * 45); i++) {
             String id = ids.get(i);
             String base = "deaths." + id;
-            inv.setItem(i - page * 45, createItem(Material.SKELETON_SKULL,
+            int slot = i - page * 45;
+            slotIds.put(slot, id);
+            inv.setItem(slot, createItem(Material.SKELETON_SKULL,
                     "§c" + deathsData.getString(base + ".player", "Unknown"),
                     "§7Time: " + deathsData.getString(base + ".time", ""),
                     "§7World: " + deathsData.getString(base + ".world", ""),
@@ -1471,6 +1502,7 @@ public class StaffJobsPlugin extends JavaPlugin implements Listener {
         inv.setItem(45, createItem(Material.ARROW, "§ePrevious"));
         inv.setItem(49, createItem(Material.ARROW, "§eBack"));
         inv.setItem(53, createItem(Material.ARROW, "§eNext"));
+        deathSlotIds.put(staff.getUniqueId(), slotIds);
         staff.openInventory(inv);
     }
 
@@ -1628,11 +1660,17 @@ public class StaffJobsPlugin extends JavaPlugin implements Listener {
                 sender.sendMessage(PREFIX + ChatColor.RED + "Invalid backup name.");
                 return;
             }
-            if (!createDataBackup()) {
+            String[] names = {"frozen.yml", "reports.yml", "notifications.yml", "staff-logs.yml", "deaths.yml", "punishments.yml", "staff-status.yml"};
+            for (String name : names) {
+                if (!new File(backup, name).isFile()) {
+                    sender.sendMessage(PREFIX + ChatColor.RED + "Backup is incomplete (missing " + name + "). Restore was cancelled.");
+                    return;
+                }
+            }
+            if (!createDataBackup(backup.getName())) {
                 sender.sendMessage(PREFIX + ChatColor.RED + "Could not create the required safety backup. Restore was cancelled.");
                 return;
             }
-            String[] names = {"frozen.yml", "reports.yml", "notifications.yml", "staff-logs.yml", "deaths.yml", "punishments.yml", "staff-status.yml"};
             for (String name : names) {
                 File source = new File(backup, name);
                 if (source.isFile()) java.nio.file.Files.copy(source.toPath(), new File(getDataFolder(), name).toPath(), java.nio.file.StandardCopyOption.REPLACE_EXISTING);
@@ -1646,6 +1684,10 @@ public class StaffJobsPlugin extends JavaPlugin implements Listener {
     }
 
     private boolean createDataBackup() {
+        return createDataBackup(null);
+    }
+
+    private boolean createDataBackup(String protectedBackupName) {
         saveAllData();
         File backupDir = new File(getDataFolder(), "backups");
         if (!backupDir.exists() && !backupDir.mkdirs()) {
@@ -1667,7 +1709,12 @@ public class StaffJobsPlugin extends JavaPlugin implements Listener {
             File[] snapshots = backupDir.listFiles(File::isDirectory);
             if (snapshots != null) {
                 Arrays.sort(snapshots, Comparator.comparingLong(File::lastModified).reversed());
-                for (int i = keep; i < snapshots.length; i++) deleteBackupTree(snapshots[i]);
+                int retained = 0;
+                for (File snapshot : snapshots) {
+                    if (protectedBackupName != null && snapshot.getName().equals(protectedBackupName)) continue;
+                    retained++;
+                    if (retained > keep) deleteBackupTree(snapshot);
+                }
             }
             getLogger().info("Created data backup: " + destination.getName());
             return true;

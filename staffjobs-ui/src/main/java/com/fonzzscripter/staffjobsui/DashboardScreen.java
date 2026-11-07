@@ -10,6 +10,42 @@ public final class DashboardScreen extends Screen {
             PANEL_ALT = 0xFF202B24, GREEN = 0xFF00E676, ACCENT = 0xFF39FF88,
             MUTED = 0xFF9AA79F, TEXT = 0xFFFFFFFF;
     private static volatile String[] serverTheme = null;
+    private static boolean compactRows = false;
+    private static boolean showOfflineStaff = true;
+    private static boolean preferencesLoaded = false;
+    private static final java.nio.file.Path PREFERENCES_FILE =
+            net.fabricmc.loader.api.FabricLoader.getInstance().getConfigDir().resolve("staffjobs-ui.properties");
+
+    private static void loadPreferences() {
+        if (preferencesLoaded) return;
+        preferencesLoaded = true;
+        java.util.Properties properties = new java.util.Properties();
+        if (java.nio.file.Files.exists(PREFERENCES_FILE)) {
+            try (java.io.InputStream input = java.nio.file.Files.newInputStream(PREFERENCES_FILE)) {
+                properties.load(input);
+                compactRows = Boolean.parseBoolean(properties.getProperty("compactRows", "false"));
+                showOfflineStaff = Boolean.parseBoolean(properties.getProperty("showOfflineStaff", "true"));
+            } catch (java.io.IOException exception) {
+                System.err.println("[StaffJobs UI] Could not load preferences: " + exception.getMessage());
+            }
+        }
+    }
+
+    private static void savePreferences() {
+        loadPreferences();
+        java.util.Properties properties = new java.util.Properties();
+        properties.setProperty("compactRows", Boolean.toString(compactRows));
+        properties.setProperty("showOfflineStaff", Boolean.toString(showOfflineStaff));
+        try {
+            java.nio.file.Files.createDirectories(PREFERENCES_FILE.getParent());
+            try (java.io.OutputStream output = java.nio.file.Files.newOutputStream(PREFERENCES_FILE)) {
+                properties.store(output, "StaffJobs UI local preferences");
+            }
+        } catch (java.io.IOException exception) {
+            System.err.println("[StaffJobs UI] Could not save preferences: " + exception.getMessage());
+        }
+    }
+
     private static volatile String settingsError = null;
     private static volatile int online = -1, maxPlayers = -1, staffOnline = -1;
     private static volatile java.util.List<String> players = java.util.Collections.emptyList();
@@ -33,7 +69,7 @@ public final class DashboardScreen extends Screen {
     private static volatile java.util.List<String[]> analyticsStaff = java.util.Collections.emptyList();
     private static volatile String analyticsError = null;
 
-    public DashboardScreen() { super(Text.literal("StaffJobs Dashboard")); }
+    public DashboardScreen() { super(Text.literal("StaffJobs Dashboard")); loadPreferences(); }
 
     public static void updateOverview(int currentOnline, int maximum, int currentStaff) {
         online = currentOnline; maxPlayers = maximum; staffOnline = currentStaff;
@@ -176,10 +212,16 @@ public final class DashboardScreen extends Screen {
                 if (analyticsStaff.isEmpty()) {
                     context.drawTextWithShadow(textRenderer, "No tracked staff records yet.", contentLeft + 16, panelTop + 116, MUTED);
                 } else {
-                    for (int i = 0; i < analyticsStaff.size() && i < 8; i++) {
-                        String[] entry = analyticsStaff.get(i);
-                        int rowY = panelTop + 110 + i * 27;
-                        context.fill(contentLeft + 10, rowY, right - 28, rowY + 23, (i % 2 == 0) ? PANEL_ALT : PANEL);
+                    java.util.List<String[]> visibleStaff = new java.util.ArrayList<>();
+                    for (String[] entry : analyticsStaff) {
+                        if (showOfflineStaff || !"OFFLINE".equals(entry[1])) visibleStaff.add(entry);
+                    }
+                    for (int i = 0; i < visibleStaff.size() && i < 8; i++) {
+                        String[] entry = visibleStaff.get(i);
+                        int rowHeight = compactRows ? 19 : 23;
+                        int rowGap = compactRows ? 22 : 27;
+                        int rowY = panelTop + 110 + i * rowGap;
+                        context.fill(contentLeft + 10, rowY, right - 28, rowY + rowHeight, (i % 2 == 0) ? PANEL_ALT : PANEL);
                         context.drawTextWithShadow(textRenderer, entry[0], contentLeft + 18, rowY + 7, 0xFFFFFFFF);
                         context.drawTextWithShadow(textRenderer, entry[1], contentLeft + 250, rowY + 7,
                                 "ONLINE".equals(entry[1]) ? GREEN : MUTED);
@@ -199,7 +241,7 @@ public final class DashboardScreen extends Screen {
             } else if (serverTheme == null) {
                 context.drawTextWithShadow(textRenderer, "Loading server theme settings...", contentLeft + 16, panelTop + 24, MUTED);
             } else {
-                context.drawTextWithShadow(textRenderer, "ACTIVE THEME", contentLeft + 16, panelTop + 18, GREEN);
+                context.drawTextWithShadow(textRenderer, "SERVER THEME", contentLeft + 16, panelTop + 18, GREEN);
                 context.drawTextWithShadow(textRenderer, "Preset: " + serverTheme[0], contentLeft + 16, panelTop + 48, TEXT);
                 String[] labels = {"PRIMARY", "SECONDARY", "BACKGROUND", "TEXT", "ACCENT"};
                 int[] colors = {parseColor(serverTheme[1], GREEN), parseColor(serverTheme[2], PANEL_ALT),
@@ -215,6 +257,10 @@ public final class DashboardScreen extends Screen {
                 context.drawTextWithShadow(textRenderer, "Gradient: " + serverTheme[6], contentLeft + 16, panelTop + 164, MUTED);
                 context.drawTextWithShadow(textRenderer, "To change the shared theme, edit interface.theme in the server config.yml.", contentLeft + 16, panelTop + 204, TEXT);
                 context.drawTextWithShadow(textRenderer, "Theme changes are applied when clients reconnect / reopen the dashboard.", contentLeft + 16, panelTop + 226, MUTED);
+                context.drawTextWithShadow(textRenderer, "LOCAL UI PREFERENCES", contentLeft + 16, panelTop + 266, GREEN);
+                drawPreference(context, contentLeft + 16, panelTop + 290, "Compact roster rows", compactRows);
+                drawPreference(context, contentLeft + 260, panelTop + 290, "Show offline staff", showOfflineStaff);
+                context.drawTextWithShadow(textRenderer, "Saved on this device in config/staffjobs-ui.properties.", contentLeft + 16, panelTop + 322, MUTED);
             }
         } else if (selectedPage == 6) {
             context.drawTextWithShadow(textRenderer, "Punishment History", contentLeft, top + 22, 0xFFFFFFFF);
@@ -297,7 +343,23 @@ public final class DashboardScreen extends Screen {
     @Override
     public boolean mouseClicked(double mouseX, double mouseY, int button) {
         if (button == 0) {
+            loadPreferences();
             int left = Math.max(18, (width - 760) / 2);
+            int topForPreferences = Math.max(18, (height - 440) / 2);
+            int contentForPreferences = left + 194;
+            int panelForPreferences = topForPreferences + 76;
+            if (selectedPage == 7 && mouseY >= panelForPreferences + 290 && mouseY <= panelForPreferences + 312) {
+                if (mouseX >= contentForPreferences + 16 && mouseX <= contentForPreferences + 236) {
+                    compactRows = !compactRows;
+                    savePreferences();
+                    return true;
+                }
+                if (mouseX >= contentForPreferences + 260 && mouseX <= contentForPreferences + 490) {
+                    showOfflineStaff = !showOfflineStaff;
+                    savePreferences();
+                    return true;
+                }
+            }
             int top = Math.max(18, (height - 440) / 2);
             for (int i = 0; i < 8; i++) {
                 int y = top + 77 + i * 30;
@@ -424,6 +486,15 @@ public final class DashboardScreen extends Screen {
             if (name.toLowerCase(java.util.Locale.ROOT).contains(query)) filtered.add(name);
         }
         return filtered;
+    }
+
+    private void drawPreference(DrawContext context, int x, int y, String label, boolean enabled) {
+        int width = 218;
+        context.fill(x, y, x + width, y + 22, PANEL_ALT);
+        context.drawBorder(x, y, width, 22, enabled ? GREEN : 0xFF34443A);
+        context.drawTextWithShadow(textRenderer, label, x + 8, y + 7, TEXT);
+        context.drawTextWithShadow(textRenderer, enabled ? "ON" : "OFF", x + width - 34, y + 7,
+                enabled ? GREEN : MUTED);
     }
 
     private void drawNav(DrawContext context, int x, int y, String label, boolean selected) {

@@ -458,10 +458,12 @@ public class StaffJobsPlugin extends JavaPlugin implements Listener {
             if (afkPlayers.contains(online.getUniqueId())) afkCount++;
         }
         List<String[]> rows = new ArrayList<>();
+        int trackedStaff = 0;
         if (staffStatusData != null && staffStatusData.getConfigurationSection("staff") != null) {
             for (String key : staffStatusData.getConfigurationSection("staff").getKeys(false)) {
-                if (rows.size() >= 10) break;
                 if (!staffStatusData.getBoolean("staff." + key + ".staff", false)) continue;
+                trackedStaff++;
+                if (rows.size() >= 10) continue;
                 try {
                     UUID uuid = UUID.fromString(key);
                     Player online = onlineStaff.get(uuid);
@@ -482,7 +484,6 @@ public class StaffJobsPlugin extends JavaPlugin implements Listener {
                     "ONLINE".equals(b[1]) ? 0 : "AFK".equals(b[1]) ? 1 : 2);
             return statusOrder != 0 ? statusOrder : a[0].compareToIgnoreCase(b[0]);
         });
-        int trackedStaff = rows.size();
         List<String[]> result = new ArrayList<>();
         result.add(new String[]{Integer.toString(onlineStaff.size()), Integer.toString(afkCount),
                 Integer.toString(trackedStaff)});

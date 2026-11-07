@@ -466,7 +466,7 @@ public final class DashboardScreen extends Screen {
     public boolean charTyped(CharInput input) {
         int codepoint = input.codepoint();
         if (selectedPage == 1 && searchFocused && !Character.isISOControl(codepoint)) {
-            String chr = input.codepointAsString();
+            String chr = new String(Character.toChars(codepoint));
             if (searchQuery.length() + chr.length() <= 24) searchQuery += chr;
             return true;
         }

@@ -21,18 +21,21 @@ public final class StaffJobsUI implements ClientModInitializer {
         openDashboardKey = KeyBindingHelper.registerKeyBinding(new KeyBinding(
                 "key.staffjobsui.open_dashboard",
                 InputUtil.Type.KEYSYM,
-                GLFW.GLFW_KEY右_ALT,
+                GLFW.GLFW_KEY_RIGHT_ALT,
                 "category.staffjobsui"
         ));
 
         ClientPlayNetworking.registerGlobalReceiver(CHANNEL, (client, handler, buf, responseSender) -> {
             String status = buf.readString(64);
             if ("WELCOME".equals(status)) {
-                int protocol = buf.readVarInt();
+                int protocol = Integer.parseInt(buf.readString(16));
                 String pluginVersion = buf.readString(64);
                 String playerId = buf.readString(64);
                 client.execute(() -> {
                     handshakeAccepted = protocol == 1;
+                    if (client.player != null && handshakeAccepted) {
+                        client.setScreen(new DashboardScreen());
+                    }
                     if (client.player != null) {
                         client.player.sendMessage(Text.literal(handshakeAccepted
                                 ? "StaffJobs UI connected (plugin " + pluginVersion + ")."

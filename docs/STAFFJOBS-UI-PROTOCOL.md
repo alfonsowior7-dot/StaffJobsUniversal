@@ -1,6 +1,6 @@
 # StaffJobs UI Plugin Message Protocol
 
-Status: protocol version 1; read-only overview, online player list, and online player profile endpoints implemented. Client-side player-name filtering is available in the Fabric dashboard.
+Status: protocol version 1; overview, player views, reports, activity, and read-only death metadata endpoints implemented.
 
 ## Transport
 - Channel: `staffjobs:ui`
@@ -48,6 +48,10 @@ or:
 - `PROFILE_ERROR`, short reason.
 
 Profiles are read-only. No IP address, coordinates, inventory, or other private player data is sent. A target who disconnects before lookup receives an error.
+
+## Implemented death log endpoint
+
+Client sends `GET_DEATH_LOGS`. Server checks `staffjobs.deathlogs` and returns up to 20 newest records with record ID, player name, timestamp, world and block coordinates, death cause, and level. The Fabric dashboard renders the latest 10 entries. Inventory, armor, offhand, and other rollback snapshot contents are deliberately not transmitted. Users without permission receive `SECTION_DENIED` for the `deaths` section.
 
 ## Security requirements for future messages
 - Check each section/action's own permission server-side.

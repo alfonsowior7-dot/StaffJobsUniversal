@@ -161,17 +161,19 @@ public final class StaffJobsBridge implements PluginMessageListener {
                 return;
             }
             java.util.List<String[]> rows = ((StaffJobsPlugin) plugin).getDashboardAnalytics();
-            String[] response = new String[5 + Math.max(0, rows.size() - 1) * 3];
+            String[] response = new String[5 + Math.max(0, rows.size() - 1) * 5];
             response[0] = "ANALYTICS";
             response[1] = rows.isEmpty() ? "0" : safeField(rows.get(0)[0], 8);
             response[2] = rows.isEmpty() ? "0" : safeField(rows.get(0)[1], 8);
             response[3] = rows.isEmpty() ? "0" : safeField(rows.get(0)[2], 8);
             response[4] = Integer.toString(Math.max(0, rows.size() - 1));
             for (int i = 1; i < rows.size(); i++) {
-                int offset = 5 + (i - 1) * 3;
+                int offset = 5 + (i - 1) * 5;
                 response[offset] = safeField(rows.get(i)[0], 36);
                 response[offset + 1] = safeField(rows.get(i)[1], 12);
                 response[offset + 2] = safeField(rows.get(i)[2], 20);
+                response[offset + 3] = safeField(rows.get(i)[3], 24);
+                response[offset + 4] = safeField(rows.get(i)[4], 12);
             }
             sendResponse(player, response);
             return;

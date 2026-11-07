@@ -111,8 +111,6 @@ public final class DashboardScreen extends Screen {
                 }
             }
             if (selectedPage == 1) {
-                int left = Math.max(18, (width - 760) / 2);
-                int top = Math.max(18, (height - 440) / 2);
                 int contentLeft = left + 194;
                 int panelTop = top + 76;
                 int split = contentLeft + 236;

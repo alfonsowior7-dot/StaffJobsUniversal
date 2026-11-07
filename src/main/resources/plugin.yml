@@ -100,9 +100,6 @@ permissions:
   staffjobs.deathlogs:
     description: View death logs from the dashboard
     default: op
-  staffjobs.punishments:
-    description: View and manage punishments
-    default: op
   staffjobs.settings:
     description: Access StaffJobs dashboard settings
     default: op

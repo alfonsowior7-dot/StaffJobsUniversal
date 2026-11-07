@@ -126,6 +126,14 @@ public class StaffJobsPlugin extends JavaPlugin implements Listener {
         loadDeaths();
         loadPunishments();
         loadStaffStatus();
+        // A previous session without a matching quit event ended during a server stop/crash.
+        // Do not count that uncertain interval as playtime.
+        if (staffStatusData.getConfigurationSection("staff") != null) {
+            for (String key : staffStatusData.getConfigurationSection("staff").getKeys(false)) {
+                staffStatusData.set("staff." + key + ".session-start", null);
+            }
+            saveStaffStatus();
+        }
         getServer().getPluginManager().registerEvents(this, this);
         if (getConfig().getBoolean("settings.update-check.enabled", true)) checkForUpdates();
         Objects.requireNonNull(getCommand("staffmenu")).setExecutor(this);
@@ -448,7 +456,7 @@ public class StaffJobsPlugin extends JavaPlugin implements Listener {
         else return false;
         return true;
     }
-    /** Returns staff roster and live AFK metrics; historical playtime is not tracked. */
+    /** Returns staff roster, live AFK metrics, and accumulated completed-session playtime. */
     public List<String[]> getDashboardAnalytics() {
         Map<UUID, Player> onlineStaff = new HashMap<>();
         int afkCount = 0;
@@ -470,9 +478,18 @@ public class StaffJobsPlugin extends JavaPlugin implements Listener {
                     String name = online != null ? online.getName()
                             : staffStatusData.getString("staff." + key + ".name", "Unknown");
                     String status = online == null ? "OFFLINE" : afkPlayers.contains(uuid) ? "AFK" : "ONLINE";
+                    String base = "staff." + key;
                     long lastOnline = online != null ? System.currentTimeMillis()
-                            : staffStatusData.getLong("staff." + key + ".last-online", 0L);
-                    rows.add(new String[]{name, status, Long.toString(lastOnline)});
+                            : staffStatusData.getLong(base + ".last-online", 0L);
+                    long totalPlaytime = Math.max(0L, staffStatusData.getLong(base + ".total-playtime-ms", 0L));
+                    if (online != null) {
+                        long sessionStart = staffStatusData.getLong(base + ".session-start", System.currentTimeMillis());
+                        totalPlaytime = totalPlaytime > Long.MAX_VALUE - Math.max(0L, System.currentTimeMillis() - sessionStart)
+                                ? Long.MAX_VALUE : totalPlaytime + Math.max(0L, System.currentTimeMillis() - sessionStart);
+                    }
+                    long sessions = Math.max(0L, staffStatusData.getLong(base + ".total-sessions", 0L));
+                    rows.add(new String[]{name, status, Long.toString(lastOnline),
+                            Long.toString(totalPlaytime), Long.toString(sessions)});
                 } catch (IllegalArgumentException ignored) {
                     getLogger().warning("Skipped invalid staff status UUID: " + key);
                 }
@@ -944,7 +961,13 @@ public class StaffJobsPlugin extends JavaPlugin implements Listener {
         afkPlayers.remove(player.getUniqueId());
         String staffPath = "staff." + player.getUniqueId();
         staffStatusData.set(staffPath + ".name", player.getName());
-        staffStatusData.set(staffPath + ".staff", player.hasPermission("staffjobs.use"));
+        boolean isStaff = player.hasPermission("staffjobs.use");
+        staffStatusData.set(staffPath + ".staff", isStaff);
+        if (isStaff) {
+            staffStatusData.set(staffPath + ".session-start", System.currentTimeMillis());
+        } else {
+            staffStatusData.set(staffPath + ".session-start", null);
+        }
         saveStaffStatus();
         if (frozen.contains(player.getUniqueId())) {
             player.sendMessage(PREFIX + ChatColor.RED + "You are still FROZEN by a staff member.");
@@ -965,8 +988,15 @@ public class StaffJobsPlugin extends JavaPlugin implements Listener {
         if (player.hasPermission("staffjobs.use")) {
             String path = "staff." + player.getUniqueId();
             staffStatusData.set(path + ".name", player.getName());
-            staffStatusData.set(path + ".staff", true);
-            staffStatusData.set(path + ".last-online", System.currentTimeMillis());
+            long now = System.currentTimeMillis();
+            long sessionStart = staffStatusData.getLong(path + ".session-start", now);
+            long duration = Math.max(0L, Math.min(now - sessionStart, 7L * 24L * 60L * 60L * 1000L));
+            long previousTotal = Math.max(0L, staffStatusData.getLong(path + ".total-playtime-ms", 0L));
+            staffStatusData.set(path + ".total-playtime-ms", previousTotal > Long.MAX_VALUE - duration
+                    ? Long.MAX_VALUE : previousTotal + duration);
+            staffStatusData.set(path + ".total-sessions", Math.max(0L, staffStatusData.getLong(path + ".total-sessions", 0L)) + 1L);
+            staffStatusData.set(path + ".session-start", null);
+            staffStatusData.set(path + ".last-online", now);
             saveStaffStatus();
         }
         lastActivity.remove(player.getUniqueId());

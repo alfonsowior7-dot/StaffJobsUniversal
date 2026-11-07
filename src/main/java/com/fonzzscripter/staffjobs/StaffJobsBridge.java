@@ -23,6 +23,7 @@ public final class StaffJobsBridge implements PluginMessageListener {
     private static final long REQUEST_COOLDOWN_MS = 750L;
     private final JavaPlugin plugin;
     private final Map<UUID, Long> lastRequestAt = new ConcurrentHashMap<>();
+    private final Map<UUID, Long> lastHelloAt = new ConcurrentHashMap<>();
     private final Set<UUID> authenticated = ConcurrentHashMap.newKeySet();
 
     private StaffJobsBridge(JavaPlugin plugin) { this.plugin = plugin; }
@@ -48,10 +49,9 @@ public final class StaffJobsBridge implements PluginMessageListener {
         }
 
         long now = System.currentTimeMillis();
-        Long previous = lastRequestAt.put(player.getUniqueId(), now);
-        if (previous != null && now - previous < REQUEST_COOLDOWN_MS) return;
-
         if ("HELLO".equals(request)) {
+            Long previousHello = lastHelloAt.put(player.getUniqueId(), now);
+            if (previousHello != null && now - previousHello < 1000L) return;
             authenticated.remove(player.getUniqueId());
             if (!player.hasPermission("staffjobs.dashboard")) {
                 sendResponse(player, "DENIED", "Missing permission: staffjobs.dashboard");
@@ -62,6 +62,9 @@ public final class StaffJobsBridge implements PluginMessageListener {
                     plugin.getDescription().getVersion(), player.getUniqueId().toString());
             return;
         }
+
+        Long previousRequest = lastRequestAt.put(player.getUniqueId(), now);
+        if (previousRequest != null && now - previousRequest < REQUEST_COOLDOWN_MS) return;
 
         if (!authenticated.contains(player.getUniqueId())
                 || !player.hasPermission("staffjobs.dashboard")) {

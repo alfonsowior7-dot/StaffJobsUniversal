@@ -134,6 +134,28 @@ public final class StaffJobsBridge implements PluginMessageListener {
             sendResponse(player, response);
             return;
         }
+        if ("GET_ANALYTICS".equals(request)) {
+            if (!player.hasPermission("staffjobs.analytics")) {
+                sendResponse(player, "SECTION_DENIED", "analytics", "Missing permission: staffjobs.analytics");
+                return;
+            }
+            java.util.List<String[]> rows = ((StaffJobsPlugin) plugin).getDashboardAnalytics();
+            String[] response = new String[5 + Math.max(0, rows.size() - 1) * 3];
+            response[0] = "ANALYTICS";
+            response[1] = rows.isEmpty() ? "0" : safeField(rows.get(0)[0], 8);
+            response[2] = rows.isEmpty() ? "0" : safeField(rows.get(0)[1], 8);
+            response[3] = rows.isEmpty() ? "0" : safeField(rows.get(0)[2], 8);
+            response[4] = Integer.toString(Math.max(0, rows.size() - 1));
+            for (int i = 1; i < rows.size(); i++) {
+                int offset = 5 + (i - 1) * 3;
+                response[offset] = safeField(rows.get(i)[0], 36);
+                response[offset + 1] = safeField(rows.get(i)[1], 12);
+                response[offset + 2] = safeField(rows.get(i)[2], 20);
+            }
+            sendResponse(player, response);
+            return;
+        }
+
         if ("GET_OVERVIEW".equals(request)) {
             if (!player.hasPermission("staffjobs.dashboard")) {
                 sendResponse(player, "DENIED", "Missing permission: staffjobs.dashboard");

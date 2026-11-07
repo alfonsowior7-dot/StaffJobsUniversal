@@ -116,3 +116,17 @@ STAFFJOBS UNIVERSAL follows Semantic Versioning:
 - **Source Code:** https://github.com/alfonsowior7-dot/StaffJobsUniversal
 
 When reporting a bug, include the server version, Java version, plugin version, relevant console errors, and clear reproduction steps. Never include server passwords, tokens, or other private information in public issues.
+
+
+## 2.0.0 Beta Development
+
+The `beta-2.0.0` branch is the development line for the planned StaffJobs companion dashboard.
+
+- The Paper plugin remains the authoritative source for permissions and server-side actions.
+- The optional Fabric companion mod is intended for staff members only.
+- The initial plugin-message bridge uses channel `staffjobs:ui` and protocol version `1`.
+- The first bridge milestone implements only a permission-checked capability handshake. It does not yet expose player data or execute administrative actions.
+- Dashboard permissions are granular and can be assigned through your server permission manager (for example, LuckPerms).
+- Default visual theme: `BLACK_GREEN`.
+
+Minecraft 1.20.x, 1.21.x, and 26.x remain compatibility targets, subject to separate build and runtime testing for each supported game/API generation.

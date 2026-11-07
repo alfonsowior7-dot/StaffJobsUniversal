@@ -2,21 +2,29 @@
 
 Client-side Fabric companion mod for StaffJobs Universal.
 
-## Current status
+## Current target
 
-This is the first development scaffold for Minecraft 1.20.1. It currently includes:
+- Minecraft Java: **1.21.11**
+- Java runtime / compile target: **21**
+- Fabric Loader: **0.18.1 or newer**
+- Fabric API: **0.141.6+1.21.11**
+- Yarn mappings: **1.21.11+build.6**
+- Mod version: **2.0.0-beta.2**
+
+## Features
 
 - Client-only Fabric entrypoint.
-- Right Alt keybind to send the StaffJobs UI handshake.
+- Right Alt keybind to open the StaffJobs dashboard handshake.
 - Protocol v1 HELLO / WELCOME / DENIED handling.
-- Initial dark black-and-green dashboard shell.
-- Server-side permission remains authoritative.
-
-The dashboard cards and navigation are visual placeholders. Player data, report actions, punishment actions, analytics, and settings are not wired up yet.
+- Black-and-green dashboard UI.
+- Player list and online player profile requests.
+- Report center and server-authoritative report actions.
+- Staff analytics, activity history, death logs, punishment history and theme settings.
+- Local preferences stored in `config/staffjobs-ui.properties`.
 
 ## Build
 
-From this directory, use a Java 17 JDK and run:
+Use a Java 21 JDK. From this directory:
 
 ```sh
 gradle build
@@ -26,13 +34,12 @@ The output jar is placed in `build/libs/`.
 
 ## Compatibility
 
-Minecraft 1.20.1 is the initial compile target. Additional 1.20.x, 1.21.x, and 26.x versions require version-specific builds/adapters and actual client/server testing before being marked supported.
+This beta build targets Minecraft 1.21.11 only. Other 1.20.x, 1.21.x, and 26.x versions require separate version-specific builds/adapters and testing.
 
 ## Server
 
-Install StaffJobs Universal 2.0.0 beta on the Paper server. A staff member also needs this client mod. The server checks `staffjobs.dashboard`; each future dashboard feature will require its own permission check.
+Install StaffJobs Universal 2.0.0 beta on the Paper server. Staff members need this client mod. The server remains authoritative and checks `staffjobs.dashboard` during the handshake and every request; each dashboard section has its own permission check.
 
+## Important testing status
 
-### Local UI preferences
-
-The Fabric client stores per-device presentation preferences in `config/staffjobs-ui.properties`: `compactRows` controls staff roster density and `showOfflineStaff` controls whether offline staff appear in the analytics roster. These settings are local to each client and do not change server configuration or permissions.
+A successful CI build verifies compilation and packaging only. The Paper-to-Fabric connection, dashboard rendering, and actions still require in-game testing on a 1.21.11 client and compatible Paper server.

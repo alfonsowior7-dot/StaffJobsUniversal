@@ -58,6 +58,10 @@ public final class StaffJobsUI implements ClientModInitializer {
                             buf.readString(24), buf.readString(40), buf.readString(300)});
                 }
                 client.execute(() -> DashboardScreen.updateReports(reports));
+            } else if ("REPORT_ACTION_RESULT".equals(status)) {
+                String result = buf.readString(24);
+                String message = buf.readString(160);
+                client.execute(() -> DashboardScreen.updateReportActionResult(result, message));
             } else if ("SECTION_DENIED".equals(status)) {
                 String section = buf.readString(32);
                 String reason = buf.readString(128);
@@ -108,6 +112,14 @@ public final class StaffJobsUI implements ClientModInitializer {
         if (!handshakeAccepted || !ClientPlayNetworking.canSend(CHANNEL)) return;
         net.minecraft.network.PacketByteBuf payload = net.fabricmc.fabric.api.networking.v1.PacketByteBufs.create();
         payload.writeString("GET_REPORTS");
+        ClientPlayNetworking.send(CHANNEL, payload);
+    }
+    public static void performReportAction(String action, String reportId) {
+        if (!handshakeAccepted || !ClientPlayNetworking.canSend(CHANNEL) || reportId == null) return;
+        net.minecraft.network.PacketByteBuf payload = net.fabricmc.fabric.api.networking.v1.PacketByteBufs.create();
+        payload.writeString("REPORT_ACTION");
+        payload.writeString(action);
+        payload.writeString(reportId);
         ClientPlayNetworking.send(CHANNEL, payload);
     }
     public static void requestPlayers() {

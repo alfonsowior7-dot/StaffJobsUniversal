@@ -438,9 +438,9 @@ public final class DashboardScreen extends Screen {
                 }
             }
             if (selectedPage == 2) {
-                int contentLeft = left + 194;
+                int contentLeft = left + contentOffset;
                 int panelTop = top + 76;
-                int bottom = Math.min(height - 18, top + 440);
+                int bottom = top + panelHeight;
                 for (int i = 0; i < reports.size() && i < 8; i++) {
                     int rowY = panelTop + 16 + i * 28;
                     if (mouseX >= contentLeft + 10 && mouseX <= width - 46
@@ -464,7 +464,7 @@ public final class DashboardScreen extends Screen {
                 }
             }
             if (selectedPage == 1) {
-                int contentLeft = left + 194;
+                int contentLeft = left + contentOffset;
                 int panelTop = top + 76;
                 int split = contentLeft + 236;
                 int searchLeft = contentLeft + 10, searchTop = panelTop + 34;

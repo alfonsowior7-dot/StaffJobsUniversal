@@ -79,3 +79,8 @@ Client sends `GET_DEATH_LOGS`. Server checks `staffjobs.deathlogs` and returns u
 - Death logs
 - Punishment history/actions
 - Settings read/update
+
+
+### Local UI preferences
+
+The Fabric client stores per-device presentation preferences in `config/staffjobs-ui.properties`: `compactRows` controls staff roster density and `showOfflineStaff` controls whether offline staff appear in the analytics roster. These settings are local to each client and do not change server configuration or permissions.

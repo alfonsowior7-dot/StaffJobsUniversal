@@ -49,6 +49,10 @@ or:
 
 Profiles are read-only. No IP address, coordinates, inventory, or other private player data is sent. A target who disconnects before lookup receives an error.
 
+## Implemented punishment history endpoint
+
+Client sends `GET_PUNISHMENTS`. Server checks `staffjobs.punishments` and returns up to 30 newest stored history records as player name plus record text. The Fabric dashboard displays the first 10 records and indicates when more are available. This endpoint is read-only: no punishment, unmute, or removal action is accepted from the client. Unauthorized clients receive `SECTION_DENIED` for the `punishments` section.
+
 ## Implemented death log endpoint
 
 Client sends `GET_DEATH_LOGS`. Server checks `staffjobs.deathlogs` and returns up to 20 newest records with record ID, player name, timestamp, world and block coordinates, death cause, and level. The Fabric dashboard renders the latest 10 entries. Inventory, armor, offhand, and other rollback snapshot contents are deliberately not transmitted. Users without permission receive `SECTION_DENIED` for the `deaths` section.

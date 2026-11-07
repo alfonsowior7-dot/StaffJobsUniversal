@@ -155,66 +155,66 @@ public final class StaffJobsUI implements ClientModInitializer {
     }
 
     public static void requestSettings() {
-        if (!handshakeAccepted || !ClientPlayNetworking.canSend(CHANNEL)) return;
+        if (!handshakeAccepted || !ClientPlayNetworking.canSend(StaffJobsPayload.ID)) return;
         net.minecraft.network.PacketByteBuf payload = net.fabricmc.fabric.api.networking.v1.PacketByteBufs.create();
         payload.writeString("GET_SETTINGS");
-        ClientPlayNetworking.send(CHANNEL, payload);
+        sendPayload(payload);
     }
 
     public static void requestAnalytics() {
-        if (!handshakeAccepted || !ClientPlayNetworking.canSend(CHANNEL)) return;
+        if (!handshakeAccepted || !ClientPlayNetworking.canSend(StaffJobsPayload.ID)) return;
         net.minecraft.network.PacketByteBuf payload = net.fabricmc.fabric.api.networking.v1.PacketByteBufs.create();
         payload.writeString("GET_ANALYTICS");
-        ClientPlayNetworking.send(CHANNEL, payload);
+        sendPayload(payload);
     }
 
     public static void requestPunishments() {
-        if (!handshakeAccepted || !ClientPlayNetworking.canSend(CHANNEL)) return;
+        if (!handshakeAccepted || !ClientPlayNetworking.canSend(StaffJobsPayload.ID)) return;
         net.minecraft.network.PacketByteBuf payload = net.fabricmc.fabric.api.networking.v1.PacketByteBufs.create();
         payload.writeString("GET_PUNISHMENTS");
-        ClientPlayNetworking.send(CHANNEL, payload);
+        sendPayload(payload);
     }
 
     public static void requestDeathLogs() {
-        if (!handshakeAccepted || !ClientPlayNetworking.canSend(CHANNEL)) return;
+        if (!handshakeAccepted || !ClientPlayNetworking.canSend(StaffJobsPayload.ID)) return;
         net.minecraft.network.PacketByteBuf payload = net.fabricmc.fabric.api.networking.v1.PacketByteBufs.create();
         payload.writeString("GET_DEATH_LOGS");
-        ClientPlayNetworking.send(CHANNEL, payload);
+        sendPayload(payload);
     }
 
     public static void requestActivity() {
-        if (!handshakeAccepted || !ClientPlayNetworking.canSend(CHANNEL)) return;
+        if (!handshakeAccepted || !ClientPlayNetworking.canSend(StaffJobsPayload.ID)) return;
         net.minecraft.network.PacketByteBuf payload = net.fabricmc.fabric.api.networking.v1.PacketByteBufs.create();
         payload.writeString("GET_ACTIVITY");
-        ClientPlayNetworking.send(CHANNEL, payload);
+        sendPayload(payload);
     }
     public static void requestReports() {
-        if (!handshakeAccepted || !ClientPlayNetworking.canSend(CHANNEL)) return;
+        if (!handshakeAccepted || !ClientPlayNetworking.canSend(StaffJobsPayload.ID)) return;
         net.minecraft.network.PacketByteBuf payload = net.fabricmc.fabric.api.networking.v1.PacketByteBufs.create();
         payload.writeString("GET_REPORTS");
-        ClientPlayNetworking.send(CHANNEL, payload);
+        sendPayload(payload);
     }
     public static void performReportAction(String action, String reportId) {
-        if (!handshakeAccepted || !ClientPlayNetworking.canSend(CHANNEL) || reportId == null) return;
+        if (!handshakeAccepted || !ClientPlayNetworking.canSend(StaffJobsPayload.ID) || reportId == null) return;
         net.minecraft.network.PacketByteBuf payload = net.fabricmc.fabric.api.networking.v1.PacketByteBufs.create();
         payload.writeString("REPORT_ACTION");
         payload.writeString(action);
         payload.writeString(reportId);
-        ClientPlayNetworking.send(CHANNEL, payload);
+        sendPayload(payload);
     }
     public static void requestPlayers() {
-        if (!handshakeAccepted || !ClientPlayNetworking.canSend(CHANNEL)) return;
+        if (!handshakeAccepted || !ClientPlayNetworking.canSend(StaffJobsPayload.ID)) return;
         net.minecraft.network.PacketByteBuf payload = net.fabricmc.fabric.api.networking.v1.PacketByteBufs.create();
         payload.writeString("GET_PLAYERS");
-        ClientPlayNetworking.send(CHANNEL, payload);
+        sendPayload(payload);
     }
 
     public static void requestPlayerProfile(String playerName) {
-        if (!handshakeAccepted || !ClientPlayNetworking.canSend(CHANNEL)) return;
+        if (!handshakeAccepted || !ClientPlayNetworking.canSend(StaffJobsPayload.ID)) return;
         net.minecraft.network.PacketByteBuf payload = net.fabricmc.fabric.api.networking.v1.PacketByteBufs.create();
         payload.writeString("GET_PLAYER_PROFILE");
         payload.writeString(playerName);
-        ClientPlayNetworking.send(CHANNEL, payload);
+        sendPayload(payload);
     }
 
     private static void sendPayload(PacketByteBuf buffer) {

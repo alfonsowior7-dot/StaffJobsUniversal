@@ -49,6 +49,15 @@ public final class StaffJobsUI implements ClientModInitializer {
                 java.util.List<String> names = new java.util.ArrayList<>();
                 for (int i = 0; i < count; i++) names.add(buf.readString(64));
                 client.execute(() -> DashboardScreen.updatePlayers(names));
+            } else if ("PLAYER_PROFILE".equals(status)) {
+                String name = buf.readString(64);
+                String gameMode = buf.readString(32);
+                String world = buf.readString(128);
+                int ping = Integer.parseInt(buf.readString(16));
+                client.execute(() -> DashboardScreen.updatePlayerProfile(name, gameMode, world, ping));
+            } else if ("PROFILE_ERROR".equals(status)) {
+                String reason = buf.readString(128);
+                client.execute(() -> DashboardScreen.updatePlayerProfileError(reason));
             } else if ("DENIED".equals(status)) {
                 String reason = buf.readString(256);
                 client.execute(() -> {
@@ -86,6 +95,14 @@ public final class StaffJobsUI implements ClientModInitializer {
         if (!handshakeAccepted || !ClientPlayNetworking.canSend(CHANNEL)) return;
         net.minecraft.network.PacketByteBuf payload = net.fabricmc.fabric.api.networking.v1.PacketByteBufs.create();
         payload.writeString("GET_PLAYERS");
+        ClientPlayNetworking.send(CHANNEL, payload);
+    }
+
+    public static void requestPlayerProfile(String playerName) {
+        if (!handshakeAccepted || !ClientPlayNetworking.canSend(CHANNEL)) return;
+        net.minecraft.network.PacketByteBuf payload = net.fabricmc.fabric.api.networking.v1.PacketByteBufs.create();
+        payload.writeString("GET_PLAYER_PROFILE");
+        payload.writeString(playerName);
         ClientPlayNetworking.send(CHANNEL, payload);
     }
 

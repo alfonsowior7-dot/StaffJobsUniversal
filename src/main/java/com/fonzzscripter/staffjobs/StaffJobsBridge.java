@@ -74,6 +74,10 @@ public final class StaffJobsBridge implements PluginMessageListener {
         }
 
         if ("GET_OVERVIEW".equals(request)) {
+            if (!player.hasPermission("staffjobs.dashboard")) {
+                sendResponse(player, "DENIED", "Missing permission: staffjobs.dashboard");
+                return;
+            }
             int onlinePlayers = Bukkit.getOnlinePlayers().size();
             int maxPlayers = Bukkit.getMaxPlayers();
             int onlineStaff = 0;
@@ -82,6 +86,24 @@ public final class StaffJobsBridge implements PluginMessageListener {
             }
             sendResponse(player, "OVERVIEW", Integer.toString(onlinePlayers),
                     Integer.toString(maxPlayers), Integer.toString(onlineStaff));
+            return;
+        }
+
+        if ("GET_PLAYERS".equals(request)) {
+            if (!player.hasPermission("staffjobs.players")) {
+                sendResponse(player, "DENIED", "Missing permission: staffjobs.players");
+                return;
+            }
+            java.util.List<String> names = new java.util.ArrayList<>();
+            for (Player online : Bukkit.getOnlinePlayers()) {
+                if (names.size() >= 100) break;
+                names.add(online.getName());
+            }
+            String[] response = new String[names.size() + 2];
+            response[0] = "PLAYERS";
+            response[1] = Integer.toString(names.size());
+            for (int i = 0; i < names.size(); i++) response[i + 2] = names.get(i);
+            sendResponse(player, response);
         }
     }
 

@@ -58,6 +58,12 @@ public final class StaffJobsUI implements ClientModInitializer {
                             buf.readString(24), buf.readString(40), buf.readString(300)});
                 }
                 client.execute(() -> DashboardScreen.updateReports(reports));
+            } else if ("ACTIVITY".equals(status)) {
+                int count = Integer.parseInt(buf.readString(8));
+                if (count < 0 || count > 10) return;
+                java.util.List<String> entries = new java.util.ArrayList<>();
+                for (int i = 0; i < count; i++) entries.add(buf.readString(280));
+                client.execute(() -> DashboardScreen.updateActivity(entries));
             } else if ("REPORT_ACTION_RESULT".equals(status)) {
                 String result = buf.readString(24);
                 String message = buf.readString(160);
@@ -108,6 +114,12 @@ public final class StaffJobsUI implements ClientModInitializer {
         ClientPlayNetworking.send(CHANNEL, payload);
     }
 
+    public static void requestActivity() {
+        if (!handshakeAccepted || !ClientPlayNetworking.canSend(CHANNEL)) return;
+        net.minecraft.network.PacketByteBuf payload = net.fabricmc.fabric.api.networking.v1.PacketByteBufs.create();
+        payload.writeString("GET_ACTIVITY");
+        ClientPlayNetworking.send(CHANNEL, payload);
+    }
     public static void requestReports() {
         if (!handshakeAccepted || !ClientPlayNetworking.canSend(CHANNEL)) return;
         net.minecraft.network.PacketByteBuf payload = net.fabricmc.fabric.api.networking.v1.PacketByteBufs.create();

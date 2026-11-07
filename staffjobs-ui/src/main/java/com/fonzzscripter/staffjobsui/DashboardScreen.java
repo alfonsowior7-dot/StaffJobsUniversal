@@ -7,7 +7,8 @@ import net.minecraft.text.Text;
 /** Black-green dashboard with live read-only server overview cards. */
 public final class DashboardScreen extends Screen {
     private static volatile int BACKGROUND = 0xF0101412, PANEL = 0xFF18211C,
-            PANEL_ALT = 0xFF202B24, GREEN = 0xFF00E676, MUTED = 0xFF9AA79F, TEXT = 0xFFFFFFFF;
+            PANEL_ALT = 0xFF202B24, GREEN = 0xFF00E676, ACCENT = 0xFF39FF88,
+            MUTED = 0xFF9AA79F, TEXT = 0xFFFFFFFF;
     private static volatile String[] serverTheme = null;
     private static volatile String settingsError = null;
     private static volatile int online = -1, maxPlayers = -1, staffOnline = -1;
@@ -53,8 +54,9 @@ public final class DashboardScreen extends Screen {
         serverTheme = theme.clone();
         BACKGROUND = withAlpha(parseColor(theme[3], 0x00101412), 0xF0);
         GREEN = parseColor(theme[1], 0xFF00E676);
+        PANEL_ALT = parseColor(theme[2], 0xFF202B24);
         TEXT = parseColor(theme[4], 0xFFFFFFFF);
-        MUTED = parseColor(theme[5], 0xFF9AA79F);
+        ACCENT = parseColor(theme[5], 0xFF39FF88);
         settingsError = null;
     }
     private static int parseColor(String value, int fallback) {
@@ -199,14 +201,20 @@ public final class DashboardScreen extends Screen {
             } else {
                 context.drawTextWithShadow(textRenderer, "ACTIVE THEME", contentLeft + 16, panelTop + 18, GREEN);
                 context.drawTextWithShadow(textRenderer, "Preset: " + serverTheme[0], contentLeft + 16, panelTop + 48, TEXT);
-                context.drawTextWithShadow(textRenderer, "Primary: " + serverTheme[1], contentLeft + 16, panelTop + 74, MUTED);
-                context.drawTextWithShadow(textRenderer, "Secondary: " + serverTheme[2], contentLeft + 16, panelTop + 96, MUTED);
-                context.drawTextWithShadow(textRenderer, "Background: " + serverTheme[3], contentLeft + 16, panelTop + 118, MUTED);
-                context.drawTextWithShadow(textRenderer, "Text: " + serverTheme[4], contentLeft + 16, panelTop + 140, MUTED);
-                context.drawTextWithShadow(textRenderer, "Accent: " + serverTheme[5], contentLeft + 16, panelTop + 162, MUTED);
-                context.drawTextWithShadow(textRenderer, "Gradient: " + serverTheme[6], contentLeft + 16, panelTop + 184, MUTED);
-                context.drawTextWithShadow(textRenderer, "To change the shared theme, edit interface.theme in the server config.yml.", contentLeft + 16, panelTop + 224, TEXT);
-                context.drawTextWithShadow(textRenderer, "Theme changes are applied when clients reconnect / reopen the dashboard.", contentLeft + 16, panelTop + 246, MUTED);
+                String[] labels = {"PRIMARY", "SECONDARY", "BACKGROUND", "TEXT", "ACCENT"};
+                int[] colors = {parseColor(serverTheme[1], GREEN), parseColor(serverTheme[2], PANEL_ALT),
+                        parseColor(serverTheme[3], BACKGROUND), parseColor(serverTheme[4], TEXT),
+                        parseColor(serverTheme[5], ACCENT)};
+                for (int i = 0; i < labels.length; i++) {
+                    int x = contentLeft + 16 + i * 104;
+                    context.fill(x, panelTop + 76, x + 88, panelTop + 118, PANEL_ALT);
+                    context.fill(x + 8, panelTop + 84, x + 80, panelTop + 91, colors[i]);
+                    context.drawTextWithShadow(textRenderer, labels[i], x + 8, panelTop + 100, TEXT);
+                    context.drawTextWithShadow(textRenderer, serverTheme[i + 1], x + 8, panelTop + 126, MUTED);
+                }
+                context.drawTextWithShadow(textRenderer, "Gradient: " + serverTheme[6], contentLeft + 16, panelTop + 164, MUTED);
+                context.drawTextWithShadow(textRenderer, "To change the shared theme, edit interface.theme in the server config.yml.", contentLeft + 16, panelTop + 204, TEXT);
+                context.drawTextWithShadow(textRenderer, "Theme changes are applied when clients reconnect / reopen the dashboard.", contentLeft + 16, panelTop + 226, MUTED);
             }
         } else if (selectedPage == 6) {
             context.drawTextWithShadow(textRenderer, "Punishment History", contentLeft, top + 22, 0xFFFFFFFF);

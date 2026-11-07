@@ -46,6 +46,38 @@ public final class StaffJobsBridge implements PluginMessageListener {
         try (DataInputStream input = new DataInputStream(new ByteArrayInputStream(message))) {
             request = readString(input);
             if ("GET_PLAYER_PROFILE".equals(request)) targetName = readString(input);
+        if ("REPORT_ACTION".equals(request)) { reportAction = readString(input); reportId = readString(input); }
+            if (input.available() != 0) throw new IOException("Unexpected trailing payload");
+        } catch (IOException exception) {
+            plugin.getLogger().fine("Ignored malformed StaffJobs UI message from " + player.getName());
+            return;
+        }
+
+        long now = System.currentTimeMillis();
+        if ("HELLO".equals(request)) {
+            Long previousHello = lastHelloAt.put(player.getUniqueId(), now);
+            if (previousHello != null && now - previousHello < 1000L) return;
+            authenticated.remove(player.getUniqueId());
+            if (!player.hasPermission("staffjobs.dashboard")) {
+                sendResponse(player, "DENIED", "Missing permission: staffjobs.dashboard");
+                return;
+            }
+            authenticated.add(player.getUniqueId());
+            sendResponse(player, "WELCOME", Integer.toString(PROTOCOL_VERSION),
+                    plugin.getDescription().getVersion(), player.getUniqueId().toString());
+            return;
+        }
+
+        Long previousRequest = lastRequestAt.put(player.getUniqueId(), now);
+        if (previousRequest != null && now - previousRequest < REQUEST_COOLDOWN_MS) return;
+
+        if (!authenticated.contains(player.getUniqueId())
+                || !player.hasPermission("staffjobs.dashboard")) {
+            authenticated.remove(player.getUniqueId());
+            sendResponse(player, "DENIED", "Dashboard session is not authorized. Reconnect and try again.");
+            return;
+        }
+
             if ("GET_DEATH_LOGS".equals(request)) {
             if (!player.hasPermission("staffjobs.deathlogs")) {
                 sendResponse(player, "SECTION_DENIED", "deaths", "Missing permission: staffjobs.deathlogs");
@@ -84,38 +116,6 @@ public final class StaffJobsBridge implements PluginMessageListener {
             sendResponse(player, response);
             return;
         }
-        if ("REPORT_ACTION".equals(request)) { reportAction = readString(input); reportId = readString(input); }
-            if (input.available() != 0) throw new IOException("Unexpected trailing payload");
-        } catch (IOException exception) {
-            plugin.getLogger().fine("Ignored malformed StaffJobs UI message from " + player.getName());
-            return;
-        }
-
-        long now = System.currentTimeMillis();
-        if ("HELLO".equals(request)) {
-            Long previousHello = lastHelloAt.put(player.getUniqueId(), now);
-            if (previousHello != null && now - previousHello < 1000L) return;
-            authenticated.remove(player.getUniqueId());
-            if (!player.hasPermission("staffjobs.dashboard")) {
-                sendResponse(player, "DENIED", "Missing permission: staffjobs.dashboard");
-                return;
-            }
-            authenticated.add(player.getUniqueId());
-            sendResponse(player, "WELCOME", Integer.toString(PROTOCOL_VERSION),
-                    plugin.getDescription().getVersion(), player.getUniqueId().toString());
-            return;
-        }
-
-        Long previousRequest = lastRequestAt.put(player.getUniqueId(), now);
-        if (previousRequest != null && now - previousRequest < REQUEST_COOLDOWN_MS) return;
-
-        if (!authenticated.contains(player.getUniqueId())
-                || !player.hasPermission("staffjobs.dashboard")) {
-            authenticated.remove(player.getUniqueId());
-            sendResponse(player, "DENIED", "Dashboard session is not authorized. Reconnect and try again.");
-            return;
-        }
-
         if ("GET_OVERVIEW".equals(request)) {
             if (!player.hasPermission("staffjobs.dashboard")) {
                 sendResponse(player, "DENIED", "Missing permission: staffjobs.dashboard");

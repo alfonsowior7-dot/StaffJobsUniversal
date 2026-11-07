@@ -16,6 +16,8 @@ public final class DashboardScreen extends Screen {
     private int selectedPage = 0;
     private String searchQuery = "";
     private boolean searchFocused = false;
+    private static volatile java.util.List<String[]> reports = java.util.Collections.emptyList();
+    private static volatile String reportError = null;
 
     public DashboardScreen() { super(Text.literal("StaffJobs Dashboard")); }
 
@@ -29,6 +31,8 @@ public final class DashboardScreen extends Screen {
         profileError = null;
     }
     public static void updatePlayerProfileError(String reason) { selectedProfile = null; profileError = reason; }
+    public static void updateReports(java.util.List<String[]> value) { reports = java.util.Collections.unmodifiableList(new java.util.ArrayList<>(value)); reportError = null; }
+    public static void updateSectionDenied(String section, String reason) { if ("reports".equals(section)) reportError = reason; }
 
     @Override
     public void render(DrawContext context, int mouseX, int mouseY, float delta) {
@@ -80,6 +84,25 @@ public final class DashboardScreen extends Screen {
                 context.drawTextWithShadow(textRenderer, profileError == null ? "Select an online player." : profileError,
                         split + 16, panelTop + 48, MUTED);
             }
+        } else if (selectedPage == 2) {
+            context.drawTextWithShadow(textRenderer, "Report Center", contentLeft, top + 22, 0xFFFFFFFF);
+            context.drawTextWithShadow(textRenderer, "Read-only report queue · latest 20 reports", contentLeft, top + 40, MUTED);
+            int panelTop = top + 76;
+            context.fill(contentLeft, panelTop, right - 18, bottom - 22, PANEL);
+            if (reportError != null) {
+                context.drawTextWithShadow(textRenderer, reportError, contentLeft + 16, panelTop + 24, 0xFFFF7777);
+            } else if (reports.isEmpty()) {
+                context.drawTextWithShadow(textRenderer, "No reports loaded, or there are no reports.", contentLeft + 16, panelTop + 24, MUTED);
+            } else {
+                for (int i = 0; i < reports.size() && i < 12; i++) {
+                    String[] report = reports.get(i);
+                    int rowY = panelTop + 16 + i * 28;
+                    context.fill(contentLeft + 10, rowY, right - 28, rowY + 24, (i % 2 == 0) ? PANEL_ALT : PANEL);
+                    context.drawTextWithShadow(textRenderer, report[1] + " · " + report[3], contentLeft + 18, rowY + 3, GREEN);
+                    String message = report[5].length() > 54 ? report[5].substring(0, 54) + "…" : report[5];
+                    context.drawTextWithShadow(textRenderer, message, contentLeft + 18, rowY + 14, MUTED);
+                }
+            }
         } else {
             context.drawTextWithShadow(textRenderer, "Staff Dashboard", contentLeft, top + 22, 0xFFFFFFFF);
             context.drawTextWithShadow(textRenderer, "Live server overview · read-only", contentLeft, top + 40, MUTED);
@@ -114,6 +137,10 @@ public final class DashboardScreen extends Screen {
                         selectedProfile = null;
                         profileError = null;
                         StaffJobsUI.requestPlayers();
+                    } else if (i == 2) {
+                        reports = java.util.Collections.emptyList();
+                        reportError = null;
+                        StaffJobsUI.requestReports();
                     }
                     return true;
                 }

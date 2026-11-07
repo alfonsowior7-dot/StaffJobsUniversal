@@ -24,6 +24,8 @@ public final class DashboardScreen extends Screen {
     private static volatile String activityError = null;
     private static volatile java.util.List<String[]> deaths = java.util.Collections.emptyList();
     private static volatile String deathError = null;
+    private static volatile java.util.List<String[]> punishments = java.util.Collections.emptyList();
+    private static volatile String punishmentError = null;
 
     public DashboardScreen() { super(Text.literal("StaffJobs Dashboard")); }
 
@@ -40,7 +42,8 @@ public final class DashboardScreen extends Screen {
     public static void updateReports(java.util.List<String[]> value) { reports = java.util.Collections.unmodifiableList(new java.util.ArrayList<>(value)); reportError = null; }
     public static void updateActivity(java.util.List<String> value) { activity = java.util.Collections.unmodifiableList(new java.util.ArrayList<>(value)); activityError = null; }
     public static void updateDeaths(java.util.List<String[]> value) { deaths = java.util.Collections.unmodifiableList(new java.util.ArrayList<>(value)); deathError = null; }
-    public static void updateSectionDenied(String section, String reason) { if ("reports".equals(section)) reportError = reason; else if ("activity".equals(section)) activityError = reason; else if ("deaths".equals(section)) deathError = reason; }
+    public static void updatePunishments(java.util.List<String[]> value) { punishments = java.util.Collections.unmodifiableList(new java.util.ArrayList<>(value)); punishmentError = null; }
+    public static void updateSectionDenied(String section, String reason) { if ("reports".equals(section)) reportError = reason; else if ("activity".equals(section)) activityError = reason; else if ("deaths".equals(section)) deathError = reason; else if ("punishments".equals(section)) punishmentError = reason; }
     public static void updateReportActionResult(String result, String message) { reportActionMessage = message; if ("OK".equals(result)) { reports = java.util.Collections.emptyList(); reportError = "Action completed. Refresh Report Center to reload."; } else reportError = message; }
 
     @Override
@@ -126,6 +129,26 @@ public final class DashboardScreen extends Screen {
                     }
                 }
             }
+        } else if (selectedPage == 6) {
+            context.drawTextWithShadow(textRenderer, "Punishment History", contentLeft, top + 22, 0xFFFFFFFF);
+            context.drawTextWithShadow(textRenderer, "Latest records · read-only · permission: staffjobs.punishments", contentLeft, top + 40, MUTED);
+            int panelTop = top + 76;
+            context.fill(contentLeft, panelTop, right - 18, bottom - 22, PANEL);
+            if (punishmentError != null) {
+                context.drawTextWithShadow(textRenderer, punishmentError, contentLeft + 16, panelTop + 24, 0xFFFF7777);
+            } else if (punishments.isEmpty()) {
+                context.drawTextWithShadow(textRenderer, "No punishment records available.", contentLeft + 16, panelTop + 24, MUTED);
+            } else {
+                for (int i = 0; i < punishments.size() && i < 10; i++) {
+                    String[] entry = punishments.get(i);
+                    int rowY = panelTop + 10 + i * 34;
+                    context.fill(contentLeft + 10, rowY, right - 28, rowY + 30, (i % 2 == 0) ? PANEL_ALT : PANEL);
+                    context.drawTextWithShadow(textRenderer, entry[0], contentLeft + 17, rowY + 4, GREEN);
+                    String detail = entry[1].length() > 100 ? entry[1].substring(0, 100) + "…" : entry[1];
+                    context.drawTextWithShadow(textRenderer, detail, contentLeft + 17, rowY + 17, MUTED);
+                }
+                if (punishments.size() > 10) context.drawTextWithShadow(textRenderer, "+" + (punishments.size() - 10) + " more records", contentLeft + 14, bottom - 38, MUTED);
+            }
         } else if (selectedPage == 5) {
             context.drawTextWithShadow(textRenderer, "Death Logs", contentLeft, top + 22, 0xFFFFFFFF);
             context.drawTextWithShadow(textRenderer, "Latest death records · metadata only · no inventory snapshots", contentLeft, top + 40, MUTED);
@@ -203,6 +226,11 @@ public final class DashboardScreen extends Screen {
                         reportError = null;
                         selectedReportIndex = -1;
                         StaffJobsUI.requestReports();
+                    }
+                    else if (i == 6) {
+                        punishments = java.util.Collections.emptyList();
+                        punishmentError = null;
+                        StaffJobsUI.requestPunishments();
                     }
                     else if (i == 5) {
                         deaths = java.util.Collections.emptyList();

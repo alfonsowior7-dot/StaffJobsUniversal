@@ -448,6 +448,25 @@ public class StaffJobsPlugin extends JavaPlugin implements Listener {
         else return false;
         return true;
     }
+    /** Returns recent death metadata only; inventory snapshots are never exposed to the dashboard. */
+    public List<String[]> getDashboardDeaths() {
+        if (deathsData == null || deathsData.getConfigurationSection("deaths") == null) return Collections.emptyList();
+        List<String> ids = new ArrayList<>(deathsData.getConfigurationSection("deaths").getKeys(false));
+        Collections.reverse(ids);
+        List<String[]> snapshot = new ArrayList<>();
+        for (String id : ids) {
+            if (snapshot.size() >= 20) break;
+            String base = "deaths." + id;
+            String location = deathsData.getString(base + ".world", "Unknown") + " "
+                    + deathsData.getInt(base + ".x") + ", " + deathsData.getInt(base + ".y") + ", " + deathsData.getInt(base + ".z");
+            snapshot.add(new String[]{id, deathsData.getString(base + ".player", "Unknown"),
+                    deathsData.getString(base + ".time", ""), location,
+                    deathsData.getString(base + ".cause", "Unknown"),
+                    Integer.toString(deathsData.getInt(base + ".level"))});
+        }
+        return Collections.unmodifiableList(snapshot);
+    }
+
     /** Returns a bounded immutable snapshot of recent staff activity entries. */
     public List<String> getDashboardActivity() {
         if (logsData == null) return Collections.emptyList();

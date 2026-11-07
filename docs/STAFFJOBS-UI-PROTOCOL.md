@@ -29,7 +29,7 @@ Requests are rate-limited per player. Malformed, oversized, or trailing payload 
 
 ## Implemented report endpoint
 
-Client sends `GET_REPORTS`. Server checks `staffjobs.reports` and replies with up to 20 most recent reports, each containing report ID, reporter name, date, status, assigned staff, and a bounded message preview. Users without that permission receive `SECTION_DENIED` for the reports section. This endpoint is read-only; accepting, rejecting, or assigning reports remains unavailable in the companion UI.
+Client sends `GET_REPORTS`. Server checks `staffjobs.reports` and replies with up to 20 most recent reports, each containing report ID, reporter name, date, status, assigned staff, and a bounded message preview. Users without that permission receive `SECTION_DENIED` for the reports section. The companion UI supports selecting a report and sending `REPORT_ACTION` with an action (`ACCEPT`, `REJECT`, or `ASSIGN`) and report ID. The server rechecks `staffjobs.reports`, validates the ID and action, rejects duplicate assignment, and delegates to the existing audited report handlers. The server replies with `REPORT_ACTION_RESULT`, a result code, and a bounded status message. Report actions are executed server-side; client-side permission state is never trusted.
 
 ## Implemented player endpoints
 
@@ -54,7 +54,7 @@ Profiles are read-only. No IP address, coordinates, inventory, or other private 
 
 ## Planned, not yet implemented
 - Server-side player search (current search filters the received online-name list locally); richer profile fields
-- Report moderation actions (accept/reject/assign)
+- Report action result refresh/pagination and richer report detail view
 - Staff analytics and activity pages
 - Death logs
 - Punishment history/actions

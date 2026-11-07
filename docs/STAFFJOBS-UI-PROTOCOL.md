@@ -33,7 +33,7 @@ Client sends `GET_SETTINGS`. Server checks `staffjobs.settings` and returns the 
 
 ## Implemented staff analytics endpoint
 
-Client sends `GET_ANALYTICS`. Server checks `staffjobs.analytics` and returns live online staff count, AFK staff count, tracked staff count, and up to 10 roster entries (name, ONLINE/AFK/OFFLINE status, last-online timestamp). The roster only counts records explicitly marked as staff. Historical session duration and cumulative playtime are not currently tracked. Unauthorized clients receive `SECTION_DENIED` for the analytics section.
+Client sends `GET_ANALYTICS`. Server checks `staffjobs.analytics` and returns live online staff count, AFK staff count, tracked staff count, and up to 10 roster entries (name, ONLINE/AFK/OFFLINE status, last-online timestamp). The roster only counts records explicitly marked as staff. The roster includes accumulated playtime (completed sessions plus the current online session) and completed session count. Sessions interrupted by an unclean server stop are not counted because their exact end time is unknown. Unauthorized clients receive `SECTION_DENIED` for the analytics section.
 
 ## Implemented activity endpoint
 

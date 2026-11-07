@@ -434,6 +434,17 @@ public class StaffJobsPlugin extends JavaPlugin implements Listener {
 
     // REPORT SYSTEM
 
+    /** Executes a validated dashboard report action using the same audited legacy handlers. */
+    public boolean performDashboardReportAction(Player staff, String action, String id) {
+        if (staff == null || !staff.isOnline() || !staff.hasPermission("staffjobs.reports")) return false;
+        if (id == null || !id.matches("R-[A-Z0-9-]{8,80}")) return false;
+        if (findReport(id) == null) return false;
+        if ("ACCEPT".equals(action)) completeReport(staff, id);
+        else if ("REJECT".equals(action)) archiveReport(staff, id, "REJECTED", "Your report was reviewed and rejected by the staff team.");
+        else if ("ASSIGN".equals(action)) assignReport(staff, id);
+        else return false;
+        return true;
+    }
     /** Read-only report snapshot for the permission-checked companion dashboard. */
     public List<Map<?, ?>> getDashboardReports() {
         List<Map<?, ?>> snapshot = new ArrayList<>();

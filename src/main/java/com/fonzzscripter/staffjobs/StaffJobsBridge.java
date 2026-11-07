@@ -78,7 +78,25 @@ public final class StaffJobsBridge implements PluginMessageListener {
             return;
         }
 
-            if ("GET_DEATH_LOGS".equals(request)) {
+            if ("GET_PUNISHMENTS".equals(request)) {
+            if (!player.hasPermission("staffjobs.punishments")) {
+                sendResponse(player, "SECTION_DENIED", "punishments", "Missing permission: staffjobs.punishments");
+                return;
+            }
+            if (!(plugin instanceof StaffJobsPlugin)) { sendResponse(player, "PUNISHMENTS", "0"); return; }
+            java.util.List<String[]> entries = ((StaffJobsPlugin) plugin).getDashboardPunishments();
+            String[] response = new String[2 + entries.size() * 2];
+            response[0] = "PUNISHMENTS";
+            response[1] = Integer.toString(entries.size());
+            for (int i = 0; i < entries.size(); i++) {
+                response[2 + i * 2] = safeField(entries.get(i)[0], 36);
+                response[3 + i * 2] = safeField(entries.get(i)[1], 220);
+            }
+            sendResponse(player, response);
+            return;
+        }
+
+        if ("GET_DEATH_LOGS".equals(request)) {
             if (!player.hasPermission("staffjobs.deathlogs")) {
                 sendResponse(player, "SECTION_DENIED", "deaths", "Missing permission: staffjobs.deathlogs");
                 return;

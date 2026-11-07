@@ -448,6 +448,18 @@ public class StaffJobsPlugin extends JavaPlugin implements Listener {
         else return false;
         return true;
     }
+    /** Returns a bounded immutable snapshot of recent staff activity entries. */
+    public List<String> getDashboardActivity() {
+        if (logsData == null) return Collections.emptyList();
+        List<String> entries = logsData.getStringList("entries");
+        List<String> snapshot = new ArrayList<>();
+        for (int i = entries.size() - 1; i >= 0 && snapshot.size() < 10; i--) {
+            String entry = entries.get(i);
+            if (entry == null) continue;
+            snapshot.add(entry.length() <= 240 ? entry : entry.substring(0, 240));
+        }
+        return Collections.unmodifiableList(snapshot);
+    }
     /** Read-only report snapshot for the permission-checked companion dashboard. */
     public List<Map<?, ?>> getDashboardReports() {
         List<Map<?, ?>> snapshot = new ArrayList<>();

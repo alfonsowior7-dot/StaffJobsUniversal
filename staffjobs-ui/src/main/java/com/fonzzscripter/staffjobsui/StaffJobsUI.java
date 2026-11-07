@@ -43,6 +43,12 @@ public final class StaffJobsUI implements ClientModInitializer {
                 int max = Integer.parseInt(buf.readString(16));
                 int staff = Integer.parseInt(buf.readString(16));
                 client.execute(() -> DashboardScreen.updateOverview(online, max, staff));
+            } else if ("PLAYERS".equals(status)) {
+                int count = Integer.parseInt(buf.readString(8));
+                if (count < 0 || count > 100) return;
+                java.util.List<String> names = new java.util.ArrayList<>();
+                for (int i = 0; i < count; i++) names.add(buf.readString(64));
+                client.execute(() -> DashboardScreen.updatePlayers(names));
             } else if ("DENIED".equals(status)) {
                 String reason = buf.readString(256);
                 client.execute(() -> {
@@ -73,6 +79,13 @@ public final class StaffJobsUI implements ClientModInitializer {
         if (!handshakeAccepted || !ClientPlayNetworking.canSend(CHANNEL)) return;
         net.minecraft.network.PacketByteBuf payload = net.fabricmc.fabric.api.networking.v1.PacketByteBufs.create();
         payload.writeString("GET_OVERVIEW");
+        ClientPlayNetworking.send(CHANNEL, payload);
+    }
+
+    public static void requestPlayers() {
+        if (!handshakeAccepted || !ClientPlayNetworking.canSend(CHANNEL)) return;
+        net.minecraft.network.PacketByteBuf payload = net.fabricmc.fabric.api.networking.v1.PacketByteBufs.create();
+        payload.writeString("GET_PLAYERS");
         ClientPlayNetworking.send(CHANNEL, payload);
     }
 

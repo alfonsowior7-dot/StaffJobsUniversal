@@ -438,7 +438,10 @@ public class StaffJobsPlugin extends JavaPlugin implements Listener {
     public boolean performDashboardReportAction(Player staff, String action, String id) {
         if (staff == null || !staff.isOnline() || !staff.hasPermission("staffjobs.reports")) return false;
         if (id == null || !id.matches("R-[A-Z0-9-]{8,80}")) return false;
-        if (findReport(id) == null) return false;
+        Map<?, ?> report = findReport(id);
+        if (report == null) return false;
+        if ("ASSIGN".equals(action)
+                && !"Unassigned".equalsIgnoreCase(reportValue(report, "assigned-staff", "Unassigned"))) return false;
         if ("ACCEPT".equals(action)) completeReport(staff, id);
         else if ("REJECT".equals(action)) archiveReport(staff, id, "REJECTED", "Your report was reviewed and rejected by the staff team.");
         else if ("ASSIGN".equals(action)) assignReport(staff, id);

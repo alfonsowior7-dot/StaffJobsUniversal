@@ -12,7 +12,7 @@ import org.lwjgl.glfw.GLFW;
 
 public final class StaffJobsUI implements ClientModInitializer {
     public static final String MOD_ID = "staffjobsui";
-    public static final Identifier CHANNEL = new Identifier("staffjobs", "ui");
+    public static final Identifier CHANNEL = Identifier.of("staffjobs", "ui");
     private static KeyBinding openDashboardKey;
     private static boolean handshakeAccepted;
 

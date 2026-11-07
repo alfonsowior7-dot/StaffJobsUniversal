@@ -58,6 +58,10 @@ public final class StaffJobsUI implements ClientModInitializer {
                             buf.readString(24), buf.readString(40), buf.readString(300)});
                 }
                 client.execute(() -> DashboardScreen.updateReports(reports));
+            } else if ("SETTINGS".equals(status)) {
+                String[] theme = new String[]{buf.readString(32), buf.readString(16), buf.readString(16),
+                        buf.readString(16), buf.readString(16), buf.readString(16), buf.readString(8)};
+                client.execute(() -> DashboardScreen.updateSettings(theme));
             } else if ("ANALYTICS".equals(status)) {
                 int currentOnline = Integer.parseInt(buf.readString(8));
                 int currentAfk = Integer.parseInt(buf.readString(8));
@@ -139,6 +143,13 @@ public final class StaffJobsUI implements ClientModInitializer {
         if (!handshakeAccepted || !ClientPlayNetworking.canSend(CHANNEL)) return;
         net.minecraft.network.PacketByteBuf payload = net.fabricmc.fabric.api.networking.v1.PacketByteBufs.create();
         payload.writeString("GET_OVERVIEW");
+        ClientPlayNetworking.send(CHANNEL, payload);
+    }
+
+    public static void requestSettings() {
+        if (!handshakeAccepted || !ClientPlayNetworking.canSend(CHANNEL)) return;
+        net.minecraft.network.PacketByteBuf payload = net.fabricmc.fabric.api.networking.v1.PacketByteBufs.create();
+        payload.writeString("GET_SETTINGS");
         ClientPlayNetworking.send(CHANNEL, payload);
     }
 

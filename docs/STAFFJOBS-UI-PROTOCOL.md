@@ -27,6 +27,10 @@ Client sends `GET_OVERVIEW` after WELCOME. Server rechecks the session and `staf
 
 Requests are rate-limited per player. Malformed, oversized, or trailing payload data is rejected. No IP addresses or other private player details are transmitted.
 
+## Implemented report endpoint
+
+Client sends `GET_REPORTS`. Server checks `staffjobs.reports` and replies with up to 20 most recent reports, each containing report ID, reporter name, date, status, assigned staff, and a bounded message preview. Users without that permission receive `SECTION_DENIED` for the reports section. This endpoint is read-only; accepting, rejecting, or assigning reports remains unavailable in the companion UI.
+
 ## Implemented player endpoints
 
 Client sends `GET_PLAYERS`. Server checks `staffjobs.players` and replies:
@@ -50,7 +54,7 @@ Profiles are read-only. No IP address, coordinates, inventory, or other private 
 
 ## Planned, not yet implemented
 - Server-side player search (current search filters the received online-name list locally); richer profile fields
-- Report list and moderation actions
+- Report moderation actions (accept/reject/assign)
 - Staff analytics and activity pages
 - Death logs
 - Punishment history/actions

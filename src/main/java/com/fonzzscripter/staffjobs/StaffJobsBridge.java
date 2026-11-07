@@ -134,6 +134,27 @@ public final class StaffJobsBridge implements PluginMessageListener {
             sendResponse(player, response);
             return;
         }
+        if ("GET_SETTINGS".equals(request)) {
+            if (!player.hasPermission("staffjobs.settings")) {
+                sendResponse(player, "SECTION_DENIED", "settings", "Missing permission: staffjobs.settings");
+                return;
+            }
+            org.bukkit.configuration.file.FileConfiguration config = plugin.getConfig();
+            if (!config.getBoolean("interface.dashboard.enabled", true)) {
+                sendResponse(player, "SECTION_DENIED", "settings", "Dashboard interface is disabled by the server.");
+                return;
+            }
+            sendResponse(player, "SETTINGS",
+                    config.getString("interface.theme.preset", "BLACK_GREEN"),
+                    config.getString("interface.theme.primary-color", "#00FF66"),
+                    config.getString("interface.theme.secondary-color", "#008F3D"),
+                    config.getString("interface.theme.background-color", "#101010"),
+                    config.getString("interface.theme.text-color", "#FFFFFF"),
+                    config.getString("interface.theme.accent-color", "#39FF88"),
+                    Boolean.toString(config.getBoolean("interface.theme.gradient", true)));
+            return;
+        }
+
         if ("GET_ANALYTICS".equals(request)) {
             if (!player.hasPermission("staffjobs.analytics")) {
                 sendResponse(player, "SECTION_DENIED", "analytics", "Missing permission: staffjobs.analytics");

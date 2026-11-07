@@ -227,9 +227,11 @@ public final class DashboardScreen extends Screen {
                                 "ONLINE".equals(entry[1]) ? GREEN : MUTED);
                         String seen = "ONLINE".equals(entry[1]) ? "Now" : "OFFLINE".equals(entry[1]) ? "Last seen: " + entry[2] : "AFK";
                         context.drawTextWithShadow(textRenderer, seen, contentLeft + 340, rowY + 7, MUTED);
+                        context.drawTextWithShadow(textRenderer, "Playtime: " + formatDuration(parseLong(entry, 3))
+                                + " · Sessions: " + entry[4], contentLeft + 340, rowY + 16, ACCENT);
                     }
                 }
-                context.drawTextWithShadow(textRenderer, "Session history / cumulative playtime is not recorded yet.", contentLeft + 16, bottom - 38, MUTED);
+                context.drawTextWithShadow(textRenderer, "Playtime includes completed sessions plus the current online session.", contentLeft + 16, bottom - 38, MUTED);
             }
         } else if (selectedPage == 7) {
             context.drawTextWithShadow(textRenderer, "Dashboard Settings", contentLeft, top + 22, TEXT);
@@ -486,6 +488,21 @@ public final class DashboardScreen extends Screen {
             if (name.toLowerCase(java.util.Locale.ROOT).contains(query)) filtered.add(name);
         }
         return filtered;
+    }
+
+    private static long parseLong(String[] values, int index) {
+        try { return values.length > index ? Math.max(0L, Long.parseLong(values[index])) : 0L; }
+        catch (RuntimeException exception) { return 0L; }
+    }
+
+    private static String formatDuration(long milliseconds) {
+        long minutes = milliseconds / 60_000L;
+        long days = minutes / 1_440L;
+        long hours = (minutes % 1_440L) / 60L;
+        long remainder = minutes % 60L;
+        if (days > 0) return days + "d " + hours + "h";
+        if (hours > 0) return hours + "h " + remainder + "m";
+        return remainder + "m";
     }
 
     private void drawPreference(DrawContext context, int x, int y, String label, boolean enabled) {

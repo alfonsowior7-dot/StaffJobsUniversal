@@ -58,6 +58,15 @@ public final class StaffJobsUI implements ClientModInitializer {
                             buf.readString(24), buf.readString(40), buf.readString(300)});
                 }
                 client.execute(() -> DashboardScreen.updateReports(reports));
+            } else if ("DEATH_LOGS".equals(status)) {
+                int count = Integer.parseInt(buf.readString(8));
+                if (count < 0 || count > 20) return;
+                java.util.List<String[]> entries = new java.util.ArrayList<>();
+                for (int i = 0; i < count; i++) {
+                    entries.add(new String[]{buf.readString(48), buf.readString(32), buf.readString(64),
+                            buf.readString(112), buf.readString(180), buf.readString(16)});
+                }
+                client.execute(() -> DashboardScreen.updateDeaths(entries));
             } else if ("ACTIVITY".equals(status)) {
                 int count = Integer.parseInt(buf.readString(8));
                 if (count < 0 || count > 10) return;
@@ -111,6 +120,13 @@ public final class StaffJobsUI implements ClientModInitializer {
         if (!handshakeAccepted || !ClientPlayNetworking.canSend(CHANNEL)) return;
         net.minecraft.network.PacketByteBuf payload = net.fabricmc.fabric.api.networking.v1.PacketByteBufs.create();
         payload.writeString("GET_OVERVIEW");
+        ClientPlayNetworking.send(CHANNEL, payload);
+    }
+
+    public static void requestDeathLogs() {
+        if (!handshakeAccepted || !ClientPlayNetworking.canSend(CHANNEL)) return;
+        net.minecraft.network.PacketByteBuf payload = net.fabricmc.fabric.api.networking.v1.PacketByteBufs.create();
+        payload.writeString("GET_DEATH_LOGS");
         ClientPlayNetworking.send(CHANNEL, payload);
     }
 

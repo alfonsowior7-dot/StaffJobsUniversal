@@ -116,6 +116,7 @@ public class StaffJobsPlugin extends JavaPlugin implements Listener {
     @Override
     public void onEnable() {
         saveDefaultConfig();
+        StaffJobsBridge.register(this);
         loadFrozen();
         loadReports();
         loadNotifications();

@@ -448,6 +448,29 @@ public class StaffJobsPlugin extends JavaPlugin implements Listener {
         else return false;
         return true;
     }
+    /** Returns a bounded snapshot of punishment history; no mutation is exposed. */
+    public List<String[]> getDashboardPunishments() {
+        if (punishmentsData == null || punishmentsData.getConfigurationSection("players") == null) return Collections.emptyList();
+        List<String[]> snapshot = new ArrayList<>();
+        for (String uuidText : punishmentsData.getConfigurationSection("players").getKeys(false)) {
+            if (snapshot.size() >= 30) break;
+            try {
+                UUID uuid = UUID.fromString(uuidText);
+                String name = Bukkit.getOfflinePlayer(uuid).getName();
+                if (name == null || name.isBlank()) name = uuidText;
+                List<String> history = punishmentsData.getStringList("players." + uuidText);
+                for (int i = history.size() - 1; i >= 0 && snapshot.size() < 30; i--) {
+                    String record = history.get(i);
+                    if (record == null) continue;
+                    snapshot.add(new String[]{name, record.length() <= 220 ? record : record.substring(0, 220)});
+                }
+            } catch (IllegalArgumentException ignored) {
+                getLogger().warning("Skipped invalid punishment history UUID: " + uuidText);
+            }
+        }
+        return Collections.unmodifiableList(snapshot);
+    }
+
     /** Returns recent death metadata only; inventory snapshots are never exposed to the dashboard. */
     public List<String[]> getDashboardDeaths() {
         if (deathsData == null || deathsData.getConfigurationSection("deaths") == null) return Collections.emptyList();

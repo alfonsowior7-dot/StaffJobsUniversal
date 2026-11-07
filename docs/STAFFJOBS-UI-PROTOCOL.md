@@ -1,6 +1,6 @@
 # StaffJobs UI Plugin Message Protocol
 
-Status: protocol version 1; read-only overview endpoint implemented.
+Status: protocol version 1; read-only overview, online player list, and online player profile endpoints implemented.
 
 ## Transport
 - Channel: `staffjobs:ui`
@@ -26,6 +26,20 @@ Client sends `GET_OVERVIEW` after WELCOME. Server rechecks the session and `staf
 - online staff count (players with `staffjobs.use`)
 
 Requests are rate-limited per player. Malformed, oversized, or trailing payload data is rejected. No IP addresses or other private player details are transmitted.
+
+## Implemented player endpoints
+
+Client sends `GET_PLAYERS`. Server checks `staffjobs.players` and replies:
+- `PLAYERS`
+- number of entries
+- that many online player names (maximum 100)
+
+Client sends `GET_PLAYER_PROFILE`, followed by an exact online player name (1–16 ASCII letters, digits, or underscores). Server checks `staffjobs.players`, resolves the target on the server, and replies:
+- `PLAYER_PROFILE`, player name, game mode, world name, ping in milliseconds
+or:
+- `PROFILE_ERROR`, short reason.
+
+Profiles are read-only. No IP address, coordinates, inventory, or other private player data is sent. A target who disconnects before lookup receives an error.
 
 ## Security requirements for future messages
 - Check each section/action's own permission server-side.
